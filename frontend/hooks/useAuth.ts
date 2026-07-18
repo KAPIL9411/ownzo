@@ -14,7 +14,10 @@ import { useRouter } from 'next/navigation'
 import { fetchCSRFToken, clearCSRFToken } from '@/frontend/services/api.service'
 
 export function useAuth() {
-  const { user, token, isAuthenticated, isLoading, setUser, setToken, setLoading, logout } = useAuthStore()
+  const {
+    user, token, isAuthenticated, isLoading,
+    setUser, setToken, setLoading, setAuthenticating, logout,
+  } = useAuthStore()
   const router = useRouter()
   
   // Track in-flight requests to prevent state updates after unmount
@@ -66,17 +69,21 @@ export function useAuth() {
               setToken(response.data.token)
               
               // 🔒 SECURITY FIX: Fetch CSRF token immediately after login
-              // This prevents race condition on first API call
               try {
                 await fetchCSRFToken()
               } catch (csrfError) {
                 console.warn('Failed to fetch CSRF token after login:', csrfError)
-                // Non-critical error, continue anyway
               }
+
+              // Auth cycle fully complete — dismiss the global overlay
+              setAuthenticating(false)
+            } else {
+              setAuthenticating(false)
             }
           } catch (error) {
             console.error('Auth error:', error)
             if (isMountedRef.current) {
+              setAuthenticating(false)
               logout()
             }
           }
@@ -116,42 +123,38 @@ export function useAuth() {
   }, []) // Empty dependency array - store methods are stable
 
   // Popup → Redirect fallback pattern.
-  // signInWithPopup must be triggered synchronously from a user click.
-  // If the browser blocks the popup (strict settings / Safari / in-app browsers),
-  // we catch auth/popup-blocked and fall back to a full-page redirect instead.
-  const signInWithGoogle = useCallback(async () => {
+  // Returns 'success' | 'cancelled' | 'redirecting' so the caller
+  // can distinguish between the three outcomes without try/catch.
+  const signInWithGoogle = useCallback(async (): Promise<'success' | 'cancelled' | 'redirecting'> => {
     const provider = new GoogleAuthProvider()
     provider.addScope('profile')
     provider.addScope('email')
-    // Hint the account chooser to always prompt
     provider.setCustomParameters({ prompt: 'select_account' })
 
     try {
       await signInWithPopup(auth, provider)
-      // onAuthStateChanged will fire and handle the session;
-      // the login page's useEffect handles the redirect.
+      // Popup succeeded. Activate the GLOBAL overlay immediately so there
+      // is zero visible gap while onAuthStateChanged fires async.
+      setAuthenticating(true)
+      return 'success'
     } catch (error: any) {
-      if (
-        error?.code === 'auth/popup-blocked' ||
-        error?.code === 'auth/popup-closed-by-user'
-      ) {
-        // Silently fall back to redirect — onAuthStateChanged will pick it up
-        // after the page reloads back from Google.
-        if (error?.code === 'auth/popup-blocked') {
-          console.info('Popup blocked — falling back to redirect sign-in.')
-          await signInWithRedirect(auth, provider)
-        }
-        // If user simply closed the popup, don't throw — just reset state
-        return
+      if (error?.code === 'auth/popup-closed-by-user') {
+        return 'cancelled'
+      }
+      if (error?.code === 'auth/popup-blocked') {
+        console.info('Popup blocked — falling back to redirect sign-in.')
+        // setAuthenticating here too so redirect flow also shows overlay
+        setAuthenticating(true)
+        await signInWithRedirect(auth, provider)
+        return 'redirecting'
       }
       console.error('Google sign-in error:', error)
       throw error
     }
-  }, [])
+  }, [setAuthenticating])
 
   const handleLogout = useCallback(async () => {
     try {
-      // 🔒 SECURITY FIX: Clear CSRF token before logout
       clearCSRFToken()
       await AuthService.logout()
       await signOut(auth)

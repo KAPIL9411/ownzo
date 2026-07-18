@@ -7,9 +7,11 @@ interface AuthState {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
+  isAuthenticating: boolean          // true while popup→redirect→app gap is active
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void
   setLoading: (loading: boolean) => void
+  setAuthenticating: (v: boolean) => void
   logout: () => void
 }
 
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       isLoading: true,
+      isAuthenticating: false,
       setUser: (user) =>
         set({
           user,
@@ -27,11 +30,13 @@ export const useAuthStore = create<AuthState>()(
         }),
       setToken: (token) => set({ token }),
       setLoading: (loading) => set({ isLoading: loading }),
+      setAuthenticating: (v) => set({ isAuthenticating: v }),
       logout: () =>
         set({
           user: null,
           token: null,
           isAuthenticated: false,
+          isAuthenticating: false,
         }),
     }),
     {
