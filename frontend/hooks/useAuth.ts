@@ -16,7 +16,7 @@ import { fetchCSRFToken, clearCSRFToken } from '@/frontend/services/api.service'
 export function useAuth() {
   const {
     user, token, isAuthenticated, isLoading,
-    setUser, setToken, setLoading, setAuthenticating, logout,
+    setUser, setToken, setLoading, logout,
   } = useAuthStore()
   const router = useRouter()
   
@@ -67,23 +67,15 @@ export function useAuth() {
             if (response.success && response.data) {
               setUser(response.data.user)
               setToken(response.data.token)
-              
-              // 🔒 SECURITY FIX: Fetch CSRF token immediately after login
               try {
                 await fetchCSRFToken()
               } catch (csrfError) {
                 console.warn('Failed to fetch CSRF token after login:', csrfError)
               }
-
-              // Auth cycle fully complete — dismiss the global overlay
-              setAuthenticating(false)
-            } else {
-              setAuthenticating(false)
             }
           } catch (error) {
             console.error('Auth error:', error)
             if (isMountedRef.current) {
-              setAuthenticating(false)
               logout()
             }
           }
@@ -133,9 +125,6 @@ export function useAuth() {
 
     try {
       await signInWithPopup(auth, provider)
-      // Popup succeeded. Activate the GLOBAL overlay immediately so there
-      // is zero visible gap while onAuthStateChanged fires async.
-      setAuthenticating(true)
       return 'success'
     } catch (error: any) {
       if (error?.code === 'auth/popup-closed-by-user') {
@@ -143,15 +132,13 @@ export function useAuth() {
       }
       if (error?.code === 'auth/popup-blocked') {
         console.info('Popup blocked — falling back to redirect sign-in.')
-        // setAuthenticating here too so redirect flow also shows overlay
-        setAuthenticating(true)
         await signInWithRedirect(auth, provider)
         return 'redirecting'
       }
       console.error('Google sign-in error:', error)
       throw error
     }
-  }, [setAuthenticating])
+  }, [])
 
   const handleLogout = useCallback(async () => {
     try {

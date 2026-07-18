@@ -21,83 +21,36 @@ import { formatPrice, formatRelativeTime } from '@/frontend/lib/utils'
 import { cn } from '@/frontend/lib/utils'
 
 /* ─────────────────────────────────────────────────────────────
-   Category card config — icon + gradient pair per slug
+   Category card config — icon + accent colour per slug
 ───────────────────────────────────────────────────────────── */
 const CAT_CONFIG: Record<string, {
   icon: React.ElementType
-  gradient: string
-  iconBg: string
-  pattern: string
+  accent: string      // icon container bg
+  iconColor: string   // icon stroke/fill colour
 }> = {
-  electronics:        { icon: Smartphone,      gradient: 'linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'circles'   },
-  furniture:          { icon: Sofa,            gradient: 'linear-gradient(135deg,#44270a 0%,#92400e 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'grid'     },
-  books:              { icon: BookOpen,        gradient: 'linear-gradient(135deg,#14532d 0%,#16a34a 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'lines'    },
-  clothing:           { icon: Shirt,           gradient: 'linear-gradient(135deg,#4a044e 0%,#a21caf 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'dots'     },
-  sports:             { icon: Bike,            gradient: 'linear-gradient(135deg,#7c0000 0%,#dc2626 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'circles'  },
-  vehicles:           { icon: Car,             gradient: 'linear-gradient(135deg,#1c1917 0%,#44403c 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'grid'     },
-  'home-garden':      { icon: Home,            gradient: 'linear-gradient(135deg,#064e3b 0%,#059669 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'lines'    },
-  'music-instruments':{ icon: Music2,          gradient: 'linear-gradient(135deg,#1e1b4b 0%,#7c3aed 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'dots'     },
-  'art-crafts':       { icon: Palette,         gradient: 'linear-gradient(135deg,#7f1d1d 0%,#f97316 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'circles'  },
-  kitchen:            { icon: UtensilsCrossed, gradient: 'linear-gradient(135deg,#134e4a 0%,#0d9488 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'lines'    },
-  others:             { icon: Package,         gradient: 'linear-gradient(135deg,#1e3a5f 0%,#0284c7 100%)', iconBg: 'rgba(255,255,255,0.15)', pattern: 'grid'     },
+  electronics:          { icon: Smartphone,       accent: '#EFF6FF', iconColor: '#2563EB' },
+  furniture:            { icon: Sofa,              accent: '#FFF7ED', iconColor: '#C2410C' },
+  books:                { icon: BookOpen,          accent: '#F0FDF4', iconColor: '#16A34A' },
+  clothing:             { icon: Shirt,             accent: '#FDF4FF', iconColor: '#A21CAF' },
+  sports:               { icon: Bike,              accent: '#FFF1F2', iconColor: '#E11D48' },
+  vehicles:             { icon: Car,               accent: '#F8FAFC', iconColor: '#475569' },
+  'home-garden':        { icon: Home,              accent: '#ECFDF5', iconColor: '#059669' },
+  'music-instruments':  { icon: Music2,            accent: '#F5F3FF', iconColor: '#7C3AED' },
+  'art-crafts':         { icon: Palette,           accent: '#FFF7ED', iconColor: '#EA580C' },
+  kitchen:              { icon: UtensilsCrossed,   accent: '#F0FDFA', iconColor: '#0D9488' },
+  others:               { icon: Package,           accent: '#F1F5F9', iconColor: '#64748B' },
 }
 
-/* Fallback for unknown slugs */
-const FALLBACK_GRADIENTS = [
-  'linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%)',
-  'linear-gradient(135deg,#14532d 0%,#16a34a 100%)',
-  'linear-gradient(135deg,#4a044e 0%,#a21caf 100%)',
-  'linear-gradient(135deg,#7c0000 0%,#dc2626 100%)',
-  'linear-gradient(135deg,#44270a 0%,#92400e 100%)',
-  'linear-gradient(135deg,#1e1b4b 0%,#7c3aed 100%)',
+const FALLBACK_ACCENTS = [
+  { accent: '#EFF6FF', iconColor: '#2563EB' },
+  { accent: '#F0FDF4', iconColor: '#16A34A' },
+  { accent: '#FDF4FF', iconColor: '#A21CAF' },
+  { accent: '#FFF1F2', iconColor: '#E11D48' },
+  { accent: '#FFF7ED', iconColor: '#C2410C' },
+  { accent: '#F5F3FF', iconColor: '#7C3AED' },
 ]
 
-/* SVG texture patterns */
-function PatternDots() {
-  return (
-    <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-          <circle cx="2" cy="2" r="1.5" fill="white" fillOpacity="0.12" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#dots)" />
-    </svg>
-  )
-}
-function PatternGrid() {
-  return (
-    <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="grid" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-          <path d="M 24 0 L 0 0 0 24" fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.15" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#grid)" />
-    </svg>
-  )
-}
-function PatternLines() {
-  return (
-    <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="lines" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-          <line x1="0" y1="20" x2="20" y2="0" stroke="white" strokeWidth="0.6" strokeOpacity="0.12" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#lines)" />
-    </svg>
-  )
-}
-function PatternCircles() {
-  return (
-    <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="160" cy="10"  r="60" fill="white" fillOpacity="0.06" />
-      <circle cx="160" cy="160" r="90" fill="white" fillOpacity="0.05" />
-      <circle cx="10"  cy="150" r="50" fill="white" fillOpacity="0.06" />
-    </svg>
-  )
-}
+
 
 /* Reference tabs */
 const DEAL_TABS = [
@@ -245,120 +198,59 @@ export default function HomePage() {
           ═══════════════════════════════════════════════════════ */}
       {categories.length > 0 && (
         <section className="mb-8 sm:mb-12">
-          <div className="flex items-center justify-between mb-4 sm:mb-5">
+          <div className="flex items-center justify-between mb-5">
             <h2 className="section-title">Shop by categories</h2>
             <Link href="/listings" className="view-all-link text-xs sm:text-sm">
               All Categories <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             </Link>
           </div>
 
-          {/* Mobile & Tablet: Grid + Scroll */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:hidden gap-3 overflow-x-auto scrollbar-hide pb-2">
-            {categories.slice(0, 6).map((cat, idx) => {
-              const cfg = CAT_CONFIG[(cat as any).slug] ?? {
-                icon: Package,
-                gradient: FALLBACK_GRADIENTS[idx % FALLBACK_GRADIENTS.length],
-                iconBg: 'rgba(255,255,255,0.15)',
-                pattern: 'dots',
-              }
-              const Icon = cfg.icon
-              const Pattern =
-                cfg.pattern === 'dots'    ? PatternDots    :
-                cfg.pattern === 'grid'    ? PatternGrid    :
-                cfg.pattern === 'lines'   ? PatternLines   :
-                PatternCircles
-
-              return (
-                <Link
-                  key={cat.id}
-                  href={`/listings?categoryId=${cat.id}`}
-                  className="group relative overflow-hidden rounded-xl sm:rounded-2xl flex flex-col
-                             transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-xl"
-                  style={{ background: cfg.gradient, aspectRatio: '1', minHeight: 140 }}
-                >
-                  <Pattern />
-                  <div
-                    className="absolute -top-6 -right-6 h-20 w-20 sm:h-24 sm:w-24 rounded-full pointer-events-none"
-                    style={{ background: 'rgba(255,255,255,0.12)', filter: 'blur(16px)' }}
-                  />
-                  <div className="relative z-10 p-3 sm:p-4 pb-0">
-                    <p className="text-white font-extrabold text-sm sm:text-[16px] leading-tight drop-shadow-sm">
-                      {cat.name}
-                    </p>
-                    <p className="text-white/60 text-[10px] sm:text-[11px] font-medium mt-0.5">Browse items</p>
-                  </div>
-                  <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-10 transition-transform duration-200
-                                  group-hover:scale-110 group-hover:-translate-y-1">
-                    <div
-                      className="rounded-xl sm:rounded-2xl p-2 sm:p-3 backdrop-blur-sm"
-                      style={{ background: cfg.iconBg, border: '1px solid rgba(255,255,255,0.2)' }}
-                    >
-                      <Icon className="h-7 w-7 sm:h-10 sm:w-10 text-white" strokeWidth={1.5} />
-                    </div>
-                  </div>
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-12 sm:h-16 pointer-events-none"
-                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }}
-                  />
-                </Link>
-              )
-            })}
-          </div>
-
-          {/* Desktop: Horizontal scroll */}
-          <div className="hidden lg:flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+          {/* Single unified scrollable row for all breakpoints */}
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
             {categories.map((cat, idx) => {
+              const fallback = FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length]
               const cfg = CAT_CONFIG[(cat as any).slug] ?? {
                 icon: Package,
-                gradient: FALLBACK_GRADIENTS[idx % FALLBACK_GRADIENTS.length],
-                iconBg: 'rgba(255,255,255,0.15)',
-                pattern: 'dots',
+                accent: fallback.accent,
+                iconColor: fallback.iconColor,
               }
               const Icon = cfg.icon
-              const Pattern =
-                cfg.pattern === 'dots'    ? PatternDots    :
-                cfg.pattern === 'grid'    ? PatternGrid    :
-                cfg.pattern === 'lines'   ? PatternLines   :
-                PatternCircles
 
               return (
                 <Link
                   key={cat.id}
                   href={`/listings?categoryId=${cat.id}`}
-                  className="group shrink-0 relative overflow-hidden rounded-2xl flex flex-col
-                             transition-all duration-200 hover:scale-[1.04] hover:shadow-xl"
-                  style={{ background: cfg.gradient, width: 190, height: 190 }}
+                  className="group shrink-0 flex flex-col items-center gap-3 transition-all duration-200
+                             hover:-translate-y-1 active:scale-95"
+                  style={{ width: 88 }}
                 >
-                  <Pattern />
+                  {/* Icon container */}
                   <div
-                    className="absolute -top-6 -right-6 h-24 w-24 rounded-full pointer-events-none"
-                    style={{ background: 'rgba(255,255,255,0.12)', filter: 'blur(16px)' }}
-                  />
-                  <div className="relative z-10 p-4 pb-0">
-                    <p className="text-white font-extrabold text-[16px] leading-tight drop-shadow-sm">
-                      {cat.name}
-                    </p>
-                    <p className="text-white/60 text-[11px] font-medium mt-0.5">Browse items</p>
+                    className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl flex items-center justify-center
+                               transition-all duration-200 group-hover:shadow-lg"
+                    style={{
+                      background: cfg.accent,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <Icon
+                      className="h-7 w-7 sm:h-8 sm:w-8 transition-transform duration-200 group-hover:scale-110"
+                      style={{ color: cfg.iconColor }}
+                      strokeWidth={1.75}
+                    />
                   </div>
-                  <div className="absolute bottom-3 right-3 z-10 transition-transform duration-200
-                                  group-hover:scale-110 group-hover:-translate-y-1">
-                    <div
-                      className="rounded-2xl p-3 backdrop-blur-sm"
-                      style={{ background: cfg.iconBg, border: '1px solid rgba(255,255,255,0.2)' }}
-                    >
-                      <Icon className="h-10 w-10 text-white" strokeWidth={1.5} />
-                    </div>
-                  </div>
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
-                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }}
-                  />
+                  {/* Label */}
+                  <span className="text-[11px] sm:text-xs font-semibold text-gray-600 text-center leading-tight
+                                   group-hover:text-gray-900 transition-colors">
+                    {cat.name}
+                  </span>
                 </Link>
               )
             })}
           </div>
         </section>
       )}
+
 
       {/* ═══════════════════════════════════════════════════════
           LIMITED / RECENT LISTINGS
