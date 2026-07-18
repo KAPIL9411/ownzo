@@ -7,35 +7,35 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'Ownzo - Your Campus Marketplace',
+    default: 'Ownzo - Community Marketplace',
     template: '%s | Ownzo'
   },
-  description: 'Buy and sell with your college community. Safe, fast, and trusted marketplace for students.',
-  keywords: ['marketplace', 'college', 'buy', 'sell', 'students', 'campus', 'secondhand', 'used items'],
+  description: 'Buy and sell within your community. Safe, local, and sustainable marketplace for everyone.',
+  keywords: ['marketplace', 'community', 'buy', 'sell', 'local', 'secondhand', 'sustainable', 'peer-to-peer'],
   authors: [{ name: 'Ownzo Team' }],
   creator: 'Ownzo',
   publisher: 'Ownzo',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://ownzo.in'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://ownzo.vercel.app'),
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_APP_URL || 'https://ownzo.in',
-    title: 'Ownzo - Your Campus Marketplace',
-    description: 'Buy and sell with your college community. Safe, fast, and trusted marketplace for students.',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'https://ownzo.vercel.app',
+    title: 'Ownzo - Community Marketplace',
+    description: 'Buy and sell within your community. Safe, local, and sustainable.',
     siteName: 'Ownzo',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Ownzo - Campus Marketplace',
+        alt: 'Ownzo - Community Marketplace',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ownzo - Your Campus Marketplace',
-    description: 'Buy and sell with your college community. Safe, fast, and trusted marketplace for students.',
+    title: 'Ownzo - Community Marketplace',
+    description: 'Buy and sell within your community. Safe, local, and sustainable.',
     images: ['/og-image.png'],
     creator: '@ownzo',
   },
@@ -51,15 +51,19 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
+    icon: [
+      { url: '/icon', type: 'image/png', sizes: '32x32' },
+    ],
+    apple: [
+      { url: '/apple-icon', type: 'image/png', sizes: '180x180' },
+    ],
   },
   manifest: '/manifest.json',
-  verification: {
-    google: 'YOUR_GOOGLE_VERIFICATION_CODE',
-    // yandex: 'YOUR_YANDEX_VERIFICATION_CODE',
-    // yahoo: 'YOUR_YAHOO_VERIFICATION_CODE',
+  themeColor: '#1B4332',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
   },
 }
 
