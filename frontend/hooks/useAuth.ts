@@ -1,7 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '@/store/auth.store'
 import { auth } from '@/frontend/lib/firebase/config'
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth'
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+  signOut,
+} from 'firebase/auth'
 import { AuthService } from '@/frontend/services/auth.service'
 import { useRouter } from 'next/navigation'
 import { fetchCSRFToken, clearCSRFToken } from '@/frontend/services/api.service'
@@ -91,6 +98,16 @@ export function useAuth() {
       authRequestRef.current = authRequest
     })
 
+    // Handle redirect result (fallback from popup-blocked scenario).
+    // getRedirectResult resolves with null if there's no pending redirect,
+    // so this is safe to call on every page load.
+    getRedirectResult(auth).catch((error) => {
+      // Ignore 'no redirect operation' — it's the normal case
+      if (error?.code !== 'auth/no-current-user') {
+        console.error('Redirect sign-in error:', error)
+      }
+    })
+
     return () => {
       isMountedRef.current = false
       authRequestRef.current = null
@@ -98,17 +115,39 @@ export function useAuth() {
     }
   }, []) // Empty dependency array - store methods are stable
 
-  // Memoize callbacks to prevent re-renders
+  // Popup → Redirect fallback pattern.
+  // signInWithPopup must be triggered synchronously from a user click.
+  // If the browser blocks the popup (strict settings / Safari / in-app browsers),
+  // we catch auth/popup-blocked and fall back to a full-page redirect instead.
   const signInWithGoogle = useCallback(async () => {
+    const provider = new GoogleAuthProvider()
+    provider.addScope('profile')
+    provider.addScope('email')
+    // Hint the account chooser to always prompt
+    provider.setCustomParameters({ prompt: 'select_account' })
+
     try {
-      const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
-      router.push('/')
-    } catch (error) {
+      // onAuthStateChanged will fire and handle the session;
+      // the login page's useEffect handles the redirect.
+    } catch (error: any) {
+      if (
+        error?.code === 'auth/popup-blocked' ||
+        error?.code === 'auth/popup-closed-by-user'
+      ) {
+        // Silently fall back to redirect — onAuthStateChanged will pick it up
+        // after the page reloads back from Google.
+        if (error?.code === 'auth/popup-blocked') {
+          console.info('Popup blocked — falling back to redirect sign-in.')
+          await signInWithRedirect(auth, provider)
+        }
+        // If user simply closed the popup, don't throw — just reset state
+        return
+      }
       console.error('Google sign-in error:', error)
       throw error
     }
-  }, [router])
+  }, [])
 
   const handleLogout = useCallback(async () => {
     try {

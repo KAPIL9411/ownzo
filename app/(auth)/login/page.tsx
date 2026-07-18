@@ -32,10 +32,18 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await signInWithGoogle()
-      // signInWithGoogle resolves after popup closes.
-      // Firebase onAuthStateChanged will fire async — show the transition overlay
-      setTransitioning(true)
+      // If signInWithGoogle resolved without throwing, one of two things happened:
+      // 1. Popup succeeded — onAuthStateChanged will fire, isAuthenticated becomes true,
+      //    and the useEffect above will trigger the transition overlay + redirect.
+      // 2. User closed the popup — signInWithGoogle returns silently, so we reset loading.
+      // 3. Popup was blocked — signInWithRedirect was called, page is navigating away.
+      //
+      // We only reset loading for case 2. Cases 1 & 3 are handled externally.
+      if (!transitioning) {
+        setLoading(false)
+      }
     } catch {
+      // Genuine error (e.g. network failure) — reset so the user can retry
       setLoading(false)
     }
   }
