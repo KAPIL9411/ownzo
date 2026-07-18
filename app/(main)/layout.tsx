@@ -2,6 +2,7 @@
 
 import { Header } from '@/frontend/components/layout/Header'
 import { Footer } from '@/frontend/components/layout/Footer'
+import { BottomNav } from '@/frontend/components/layout/BottomNav'
 import { ErrorBoundary } from '@/frontend/components/ErrorBoundary'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
@@ -91,6 +92,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </ErrorBoundary>
         </main>
         <Footer />
+        <BottomNav />
       </div>
       <style>{`
         @keyframes fadeInUp {

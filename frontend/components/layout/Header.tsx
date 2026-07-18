@@ -192,11 +192,7 @@ export function Header() {
                     <Plus className="h-3.5 w-3.5" />Sell
                   </Link>
 
-                  {/* Mobile hamburger */}
-                  <button onClick={() => setMobileOpen(o => !o)}
-                    className="md:hidden p-2 rounded-full hover:bg-gray-100">
-                    {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                  </button>
+                  {/* Mobile hamburger — hidden, replaced by BottomNav */}
                 </>
               ) : (
                 <Link href="/login"
