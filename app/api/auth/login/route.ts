@@ -42,6 +42,8 @@ async function handler(req: NextRequest) {
     // Attach CSRF token for subsequent requests
     return attachCSRFToken(response, user.id)
   } catch (error) {
+    // Log the error for debugging
+    console.error('Login error:', error)
     return errorHandler(error)
   }
 }
