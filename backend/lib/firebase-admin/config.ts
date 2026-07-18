@@ -11,8 +11,28 @@ if (!admin.apps.length) {
     throw new Error('FIREBASE_PRIVATE_KEY environment variable is not set')
   }
   
-  // Replace escaped newlines with actual newlines
+  // Handle different private key formats
+  // 1. If it's a JSON string, parse it
+  if (privateKey.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(privateKey)
+      privateKey = parsed.privateKey || parsed.private_key || privateKey
+    } catch (e) {
+      // Not valid JSON, continue with original value
+    }
+  }
+  
+  // 2. Replace escaped newlines with actual newlines
   privateKey = privateKey.replace(/\\n/g, '\n')
+  
+  // 3. If it doesn't start with BEGIN, it might be base64 encoded
+  if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+    try {
+      privateKey = Buffer.from(privateKey, 'base64').toString('utf-8')
+    } catch (e) {
+      // Not base64, use as-is
+    }
+  }
   
   // Validate required environment variables
   if (!process.env.FIREBASE_PROJECT_ID) {
@@ -30,8 +50,10 @@ if (!admin.apps.length) {
         privateKey: privateKey,
       }),
     })
+    console.log('✅ Firebase Admin initialized successfully')
   } catch (error) {
-    console.error('Firebase Admin initialization error:', error)
+    console.error('❌ Firebase Admin initialization error:', error)
+    console.error('Private key format:', privateKey.substring(0, 50) + '...')
     throw error
   }
 } else {
