@@ -82,8 +82,29 @@ export class OfferRepository {
         throw new Error('Cannot update an already accepted offer')
       }
 
-      // When accepting an offer, reject all other pending offers for the same listing
+      // When accepting an offer, verify listing is still available within transaction
       if (status === 'accepted') {
+        // 🔒 CRITICAL: Read listing status INSIDE transaction to prevent race condition
+        const listingRef = this.db.collection('listings').doc(currentOffer.listingId)
+        const listingDoc = await transaction.get(listingRef)
+
+        if (!listingDoc.exists) {
+          throw new Error('Listing not found')
+        }
+
+        const listingData = listingDoc.data()
+        
+        // 🔒 CRITICAL: Check if listing is already sold (prevents double-spending)
+        if (listingData?.status === 'sold') {
+          throw new Error('This listing has already been sold to another buyer')
+        }
+
+        // 🔒 CRITICAL: Check if listing is still active (not deleted or suspended)
+        if (listingData?.status !== 'active') {
+          throw new Error(`Cannot accept offer: listing is ${listingData?.status}`)
+        }
+
+        // Now safe to proceed: reject all other pending offers for this listing
         const listingOffersSnapshot = await transaction.get(
           this.db
             .collection(OFFERS_COLLECTION)
@@ -101,10 +122,10 @@ export class OfferRepository {
           }
         })
 
-        // Update listing status to sold
-        const listingRef = this.db.collection('listings').doc(currentOffer.listingId)
+        // Update listing status to sold (guaranteed atomic now)
         transaction.update(listingRef, {
           status: 'sold',
+          soldAt: new Date(),
           updatedAt: new Date(),
         })
       }

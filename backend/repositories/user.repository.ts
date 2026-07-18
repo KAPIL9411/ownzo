@@ -163,6 +163,7 @@ export class UserRepository {
       listingCount: admin.firestore.FieldValue.increment(delta),
       updatedAt: new Date(),
     })
+    await this.updateTrustScore(userId)
   }
 
   async incrementReportCount(userId: string): Promise<void> {

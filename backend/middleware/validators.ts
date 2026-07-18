@@ -1,5 +1,33 @@
 import { z } from 'zod'
 
+// 🔒 SECURITY: Custom price validator to prevent floating-point manipulation
+// Rejects: scientific notation (1e-100), extremely small values, unreasonable prices
+const MIN_PRICE = 10 // Minimum ₹10
+const MAX_PRICE = 100_000_000 // Maximum ₹10 crore (reasonable for marketplace)
+
+const priceValidator = z.number()
+  .refine((val) => {
+    // Reject NaN, Infinity, -Infinity
+    if (!Number.isFinite(val)) return false
+    
+    // Reject negative numbers and zero
+    if (val <= 0) return false
+    
+    // Reject extremely small numbers (scientific notation bypass)
+    if (val < MIN_PRICE) return false
+    
+    // Reject unreasonably high prices
+    if (val > MAX_PRICE) return false
+    
+    // Reject numbers with more than 2 decimal places
+    const rounded = Math.round(val * 100) / 100
+    if (Math.abs(val - rounded) > 0.001) return false
+    
+    return true
+  }, {
+    message: `Price must be between ₹${MIN_PRICE} and ₹${MAX_PRICE.toLocaleString()} with max 2 decimal places`,
+  })
+
 // User Validators
 export const updateProfileSchema = z.object({
   name: z.string().min(2).max(100).optional(),
@@ -18,7 +46,7 @@ export const createListingSchema = z.object({
   title: z.string().min(5).max(100),
   description: z.string().min(20).max(2000),
   categoryId: z.string(),
-  price: z.number().positive(),
+  price: priceValidator, // 🔒 SECURITY FIX: Use custom validator
   negotiable: z.boolean(),
   condition: z.enum(['new', 'like-new', 'good', 'fair', 'poor']),
   city: z.string(),
@@ -48,13 +76,13 @@ export const listingFiltersSchema = z.object({
 // Offer Validators
 export const createOfferSchema = z.object({
   listingId: z.string(),
-  offerPrice: z.number().positive(),
+  offerPrice: priceValidator, // 🔒 SECURITY FIX: Use custom validator
   message: z.string().max(500).optional(),
 })
 
 export const updateOfferSchema = z.object({
   status: z.enum(['pending', 'accepted', 'rejected', 'counter']),
-  counterPrice: z.number().positive().optional(),
+  counterPrice: priceValidator.optional(), // 🔒 SECURITY FIX: Use custom validator
 })
 
 // Review Validators
@@ -70,7 +98,7 @@ export const createBuyRequestSchema = z.object({
   title: z.string().min(5).max(100),
   description: z.string().min(20).max(1000),
   categoryId: z.string(),
-  budget: z.number().positive(),
+  budget: priceValidator, // 🔒 SECURITY FIX: Use custom validator
   negotiable: z.boolean(),
   city: z.string(),
   locality: z.string().optional(),

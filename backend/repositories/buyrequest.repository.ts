@@ -69,11 +69,17 @@ export class BuyRequestRepository {
     const snapshot = await query.get()
     const buyRequests = serializeSnapshots<BuyRequest>(snapshot.docs)
 
-    const countSnapshot = await this.db
-      .collection(BUY_REQUESTS_COLLECTION)
-      .where('status', '==', 'active')
-      .count()
-      .get()
+    let countQuery: any = this.db.collection(BUY_REQUESTS_COLLECTION).where('status', '==', 'active')
+    if (filters.categoryId) {
+      countQuery = countQuery.where('categoryId', '==', filters.categoryId)
+    }
+    if (filters.city) {
+      countQuery = countQuery.where('city', '==', filters.city)
+    }
+    if (filters.communityId) {
+      countQuery = countQuery.where('communityId', '==', filters.communityId)
+    }
+    const countSnapshot = await countQuery.count().get()
     const total = countSnapshot.data().count
 
     return {

@@ -3,42 +3,45 @@ import { requireAuth } from '@/backend/middleware/auth'
 import { listingRepository } from '@/backend/repositories/listing.repository'
 import { validateRequest, updateListingSchema } from '@/backend/middleware/validators'
 import { errorHandler, ApiError } from '@/backend/middleware/error-handler'
+import { viewLimiter } from '@/backend/middleware/rate-limit'
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id: listingId } = await params
+  // 🔒 SECURITY FIX: Apply rate limiting to prevent view count abuse
+  return viewLimiter(req, async (req: NextRequest) => {
+    try {
+      const { id: listingId } = await params
 
-    const listing = await listingRepository.getListingById(listingId)
+      const listing = await listingRepository.getListingById(listingId)
 
-    if (!listing) {
-      return NextResponse.json(
-        { success: false, error: 'Listing not found' },
-        { status: 404 }
-      )
+      if (!listing) {
+        return NextResponse.json(
+          { success: false, error: 'Listing not found' },
+          { status: 404 }
+        )
+      }
+
+      // Increment views (now with existence validation)
+      await listingRepository.incrementViews(listingId)
+
+      return NextResponse.json({
+        success: true,
+        data: listing,
+      })
+    } catch (error) {
+      return errorHandler(error)
     }
-
-    // Increment views
-    await listingRepository.incrementViews(listingId)
-
-    return NextResponse.json({
-      success: true,
-      data: listing,
-    })
-  } catch (error) {
-    return errorHandler(error)
-  }
+  }, {})
 }
 
 async function patchHandler(
   req: NextRequest,
-  context: { params: { id: string }; user: any }
+  { params, user }: { params: Promise<{ id: string }>; user: { uid: string } }
 ) {
   try {
-    const listingId = context.params.id
-    const user = context.user
+    const { id: listingId } = await params
 
     const listing = await listingRepository.getListingById(listingId)
 
@@ -70,11 +73,10 @@ async function patchHandler(
 
 async function deleteHandler(
   req: NextRequest,
-  context: { params: { id: string }; user: any }
+  { params, user }: { params: Promise<{ id: string }>; user: { uid: string } }
 ) {
   try {
-    const listingId = context.params.id
-    const user = context.user
+    const { id: listingId } = await params
 
     const listing = await listingRepository.getListingById(listingId)
 

@@ -5,11 +5,10 @@ import { errorHandler, ApiError } from '@/backend/middleware/error-handler'
 
 async function patchHandler(
   req: NextRequest,
-  context: { params: { id: string }; user: any }
+  { params, user }: { params: Promise<{ id: string }>; user: { uid: string } }
 ) {
   try {
-    const requestId = context.params.id
-    const user = context.user
+    const { id: requestId } = await params
 
     const buyRequest = await buyRequestRepository.getBuyRequestById(requestId)
 
@@ -36,11 +35,10 @@ async function patchHandler(
 
 async function deleteHandler(
   req: NextRequest,
-  context: { params: { id: string }; user: any }
+  { params, user }: { params: Promise<{ id: string }>; user: { uid: string } }
 ) {
   try {
-    const requestId = context.params.id
-    const user = context.user
+    const { id: requestId } = await params
 
     const buyRequest = await buyRequestRepository.getBuyRequestById(requestId)
 

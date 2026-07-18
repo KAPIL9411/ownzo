@@ -53,7 +53,43 @@ export default function OffersPage() {
           : 'The buyer has been notified.',
       })
     },
-    onError: () => toast({ type: 'error', title: 'Action failed. Please try again.' }),
+    onError: (error: any) => {
+      // Handle specific error messages from the backend
+      const errorMessage = error?.response?.data?.error || error?.message || 'Action failed'
+      
+      // Check for already sold error
+      if (errorMessage.includes('already been sold') || errorMessage.includes('already sold')) {
+        queryClient.invalidateQueries({ queryKey: ['offers'] })
+        toast({ 
+          type: 'error', 
+          title: 'Listing Already Sold', 
+          description: 'This listing was sold to another buyer. Please refresh to see updated offers.',
+        })
+        // Auto-refresh offers after 2 seconds
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['offers'] })
+        }, 2000)
+      } else if (errorMessage.includes('already accepted')) {
+        toast({ 
+          type: 'error', 
+          title: 'Already Accepted', 
+          description: 'This offer has already been accepted.',
+        })
+      } else if (errorMessage.includes('not found')) {
+        queryClient.invalidateQueries({ queryKey: ['offers'] })
+        toast({ 
+          type: 'error', 
+          title: 'Offer Not Found', 
+          description: 'This offer no longer exists. Refreshing...',
+        })
+      } else {
+        toast({ 
+          type: 'error', 
+          title: 'Action Failed', 
+          description: errorMessage,
+        })
+      }
+    },
   })
 
   const received = receivedData?.data ?? []

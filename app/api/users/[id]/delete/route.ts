@@ -11,11 +11,11 @@ export const dynamic = 'force-dynamic'
  */
 async function handler(
   req: NextRequest,
-  context: { userId: string; params: { id: string } }
+  { params, user }: { params: Promise<{ id: string }>; user: { uid: string } }
 ) {
   try {
-    const { userId } = context
-    const targetUserId = context.params.id
+    const { id: targetUserId } = await params
+    const userId = user.uid
 
     // Users can only delete their own account
     if (userId !== targetUserId) {

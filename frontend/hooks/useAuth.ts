@@ -4,6 +4,7 @@ import { auth } from '@/frontend/lib/firebase/config'
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth'
 import { AuthService } from '@/frontend/services/auth.service'
 import { useRouter } from 'next/navigation'
+import { fetchCSRFToken, clearCSRFToken } from '@/frontend/services/api.service'
 
 export function useAuth() {
   const { user, token, isAuthenticated, isLoading, setUser, setToken, setLoading, logout } = useAuthStore()
@@ -13,9 +14,26 @@ export function useAuth() {
   const isMountedRef = useRef(true)
   const authRequestRef = useRef<Promise<void> | null>(null)
 
+  // 🧪 E2E TESTING BYPASS
+  // If we are running E2E tests, bypass Firebase Auth listener
+  // We use window object so Playwright can inject this dynamically without restarting the dev server
+  const isE2E = typeof window !== 'undefined' && (window as any).PLAYWRIGHT_TESTING === true;
+
   useEffect(() => {
     isMountedRef.current = true
     let isInitialLoad = true
+
+    if (isE2E) {
+      if (isInitialLoad && isMountedRef.current) {
+        // Force authentication state synchronously so layout doesn't redirect
+        useAuthStore.getState().setUser({ id: 'mock', name: 'Mock User', email: 'mock@example.com' } as any)
+        setLoading(false)
+        isInitialLoad = false
+      }
+      return () => {
+        isMountedRef.current = false
+      }
+    }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       // Cancel any previous in-flight auth request
@@ -39,6 +57,15 @@ export function useAuth() {
             if (response.success && response.data) {
               setUser(response.data.user)
               setToken(response.data.token)
+              
+              // 🔒 SECURITY FIX: Fetch CSRF token immediately after login
+              // This prevents race condition on first API call
+              try {
+                await fetchCSRFToken()
+              } catch (csrfError) {
+                console.warn('Failed to fetch CSRF token after login:', csrfError)
+                // Non-critical error, continue anyway
+              }
             }
           } catch (error) {
             console.error('Auth error:', error)
@@ -48,6 +75,8 @@ export function useAuth() {
           }
         } else {
           if (isMountedRef.current) {
+            // 🔒 SECURITY FIX: Clear CSRF token on logout
+            clearCSRFToken()
             logout()
           }
         }
@@ -83,6 +112,8 @@ export function useAuth() {
 
   const handleLogout = useCallback(async () => {
     try {
+      // 🔒 SECURITY FIX: Clear CSRF token before logout
+      clearCSRFToken()
       await AuthService.logout()
       await signOut(auth)
       logout()

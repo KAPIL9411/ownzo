@@ -1,64 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { randomBytes, createHmac } from 'crypto'
+import { randomBytes, createHmac, timingSafeEqual } from 'crypto'
 
 const CSRF_SECRET = process.env.CSRF_SECRET || 'default-csrf-secret-change-in-production'
 const CSRF_TOKEN_HEADER = 'x-csrf-token'
 const CSRF_COOKIE_NAME = 'csrf-token'
+const TOKEN_VALIDITY_MS = 24 * 60 * 60 * 1000 // 24 hours
 
-// In-memory store for CSRF tokens (use Redis in production for distributed systems)
-const tokenStore = new Map<string, { token: string; expiresAt: number }>()
-
-// Cleanup expired tokens every 10 minutes
-setInterval(() => {
-  const now = Date.now()
-  Array.from(tokenStore.entries()).forEach(([key, value]) => {
-    if (value.expiresAt < now) {
-      tokenStore.delete(key)
-    }
-  })
-}, 10 * 60 * 1000)
+// 🔒 SECURITY FIX: Removed in-memory Map (doesn't work in serverless)
+// Now using stateless signed tokens with embedded timestamp
+// This eliminates memory leaks and works across serverless function instances
 
 /**
- * Generate a CSRF token for a user session
+ * Generate a stateless CSRF token with embedded timestamp
+ * Format: {randomBytes}.{timestamp}.{signature}
  */
 export function generateCSRFToken(userId: string): string {
-  const token = randomBytes(32).toString('hex')
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+  const randomToken = randomBytes(32).toString('hex')
+  const timestamp = Date.now().toString()
   
-  // Store token with user ID
-  tokenStore.set(userId, { token, expiresAt })
-  
-  return token
-}
-
-/**
- * Create a signed token that can be verified
- */
-function createSignedToken(token: string, userId: string): string {
+  // Create HMAC signature of token + timestamp + userId
   const hmac = createHmac('sha256', CSRF_SECRET)
-  hmac.update(`${token}:${userId}`)
+  hmac.update(`${randomToken}:${timestamp}:${userId}`)
   const signature = hmac.digest('hex')
-  return `${token}.${signature}`
+  
+  // Return stateless token: random.timestamp.signature
+  return `${randomToken}.${timestamp}.${signature}`
 }
 
 /**
- * Verify a signed CSRF token
+ * Verify a stateless CSRF token
  */
-function verifySignedToken(signedToken: string, userId: string): boolean {
-  const parts = signedToken.split('.')
-  if (parts.length !== 2) return false
-  
-  const [token, signature] = parts
-  const hmac = createHmac('sha256', CSRF_SECRET)
-  hmac.update(`${token}:${userId}`)
-  const expectedSignature = hmac.digest('hex')
-  
-  // Use constant-time comparison to prevent timing attacks
-  return signature === expectedSignature
+function verifyCSRFTokenInternal(token: string, userId: string): boolean {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return false
+    
+    const [randomToken, timestamp, signature] = parts
+    
+    // Check if token has expired
+    const tokenTime = parseInt(timestamp, 10)
+    if (isNaN(tokenTime)) return false
+    
+    const now = Date.now()
+    if (now - tokenTime > TOKEN_VALIDITY_MS) {
+      return false // Token expired
+    }
+    
+    // Verify signature
+    const hmac = createHmac('sha256', CSRF_SECRET)
+    hmac.update(`${randomToken}:${timestamp}:${userId}`)
+    const expectedSignature = hmac.digest('hex')
+    
+    // Use constant-time comparison to prevent timing attacks
+    if (signature.length !== expectedSignature.length) {
+      return false
+    }
+    
+    return timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
+    )
+  } catch (error) {
+    console.error('[CSRF] Token verification error:', error)
+    return false
+  }
 }
 
 /**
- * Verify CSRF token from request
+ * Verify CSRF token from request (double-submit cookie pattern)
  */
 export function verifyCSRFToken(req: NextRequest, userId: string): boolean {
   // Get token from header
@@ -71,31 +80,14 @@ export function verifyCSRFToken(req: NextRequest, userId: string): boolean {
     return false
   }
   
-  // Verify tokens match (double-submit cookie pattern)
+  // 🔒 SECURITY: Verify tokens match (double-submit cookie pattern)
+  // This prevents CSRF even if attacker can read cookies but not JS
   if (headerToken !== cookieToken) {
     return false
   }
   
-  // Verify signature
-  if (!verifySignedToken(headerToken, userId)) {
-    return false
-  }
-  
-  // Check if token exists in store and hasn't expired
-  const storedToken = tokenStore.get(userId)
-  if (!storedToken) {
-    return false
-  }
-  
-  if (storedToken.expiresAt < Date.now()) {
-    tokenStore.delete(userId)
-    return false
-  }
-  
-  // Extract token from signed token
-  const token = headerToken.split('.')[0]
-  
-  return token === storedToken.token
+  // Verify the token signature and expiration
+  return verifyCSRFTokenInternal(headerToken, userId)
 }
 
 /**
@@ -132,6 +124,7 @@ export function requireCSRF(
     const isValid = verifyCSRFToken(req, userId)
     
     if (!isValid) {
+      console.warn(`[CSRF] Invalid token for user ${userId} on ${req.method} ${req.nextUrl.pathname}`)
       return NextResponse.json(
         { 
           success: false, 
@@ -151,10 +144,9 @@ export function requireCSRF(
  */
 export function attachCSRFToken(response: NextResponse, userId: string): NextResponse {
   const token = generateCSRFToken(userId)
-  const signedToken = createSignedToken(token, userId)
   
   // Set as HTTP-only cookie (double-submit pattern)
-  response.cookies.set(CSRF_COOKIE_NAME, signedToken, {
+  response.cookies.set(CSRF_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
@@ -162,7 +154,6 @@ export function attachCSRFToken(response: NextResponse, userId: string): NextRes
     path: '/',
   })
   
-  // Also return in response for client to use in headers
   return response
 }
 
@@ -171,11 +162,10 @@ export function attachCSRFToken(response: NextResponse, userId: string): NextRes
  */
 export function getCSRFTokenHandler(userId: string): NextResponse {
   const token = generateCSRFToken(userId)
-  const signedToken = createSignedToken(token, userId)
   
   const response = NextResponse.json({
     success: true,
-    data: { csrfToken: signedToken },
+    data: { csrfToken: token },
   })
   
   return attachCSRFToken(response, userId)

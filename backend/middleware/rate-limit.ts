@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import Redis from 'ioredis'
+
+const REDIS_ENABLED = process.env.REDIS_ENABLED === 'true'
+const redis = REDIS_ENABLED && process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null
 
 interface RateLimitStore {
   [key: string]: {
@@ -7,16 +11,28 @@ interface RateLimitStore {
   }
 }
 
+// Bounded memory store
 const store: RateLimitStore = {}
+const MAX_MEMORY_KEYS = 5000
 
-// Cleanup old entries every 5 minutes
+// Cleanup old entries every 5 minutes and enforce memory bounds
 setInterval(() => {
   const now = Date.now()
-  Object.keys(store).forEach(key => {
+  let keyCount = 0
+  const keys = Object.keys(store)
+  keys.forEach(key => {
     if (store[key].resetTime < now) {
       delete store[key]
+    } else {
+      keyCount++
     }
   })
+  
+  if (keyCount > MAX_MEMORY_KEYS) {
+    // If we exceed bounds even after cleanup, clear entire store to prevent memory leak attacks
+    console.warn('Rate limiter memory store exceeded bounds, clearing store')
+    Object.keys(store).forEach(k => delete store[k])
+  }
 }, 5 * 60 * 1000)
 
 interface RateLimitOptions {
@@ -25,21 +41,13 @@ interface RateLimitOptions {
   message?: string
   skipSuccessfulRequests?: boolean
   skipFailedRequests?: boolean
-  keyGenerator?: (req: NextRequest) => string
+  keyGenerator?: (req: NextRequest, context?: any) => string
 }
 
-function getClientIdentifier(req: NextRequest): string {
+function getClientIdentifier(req: NextRequest, context?: any): string {
   // Try to get user ID from auth (if authenticated)
-  const authHeader = req.headers.get('authorization')
-  if (authHeader) {
-    try {
-      // Extract user ID from token if available
-      const token = authHeader.replace('Bearer ', '')
-      // This is a simple approach - in production, decode JWT properly
-      return `user:${token.slice(0, 20)}`
-    } catch (e) {
-      // Fall through to IP-based limiting
-    }
+  if (context?.user?.uid) {
+    return `user:${context.user.uid}`
   }
 
   // Fall back to IP address
@@ -62,24 +70,56 @@ export function createRateLimiter(options: RateLimitOptions) {
     }
 
     const key = options.keyGenerator 
-      ? options.keyGenerator(req) 
-      : `${req.nextUrl.pathname}:${getClientIdentifier(req)}`
+      ? options.keyGenerator(req, context) 
+      : `ratelimit:${req.nextUrl.pathname}:${getClientIdentifier(req, context)}`
 
+    let count = 0
+    let resetTime = 0
     const now = Date.now()
-    const record = store[key]
 
-    if (!record || record.resetTime < now) {
-      // New window
-      store[key] = {
-        count: 1,
-        resetTime: now + options.windowMs,
+    if (redis) {
+      try {
+        const pipeline = redis.pipeline()
+        pipeline.incr(key)
+        pipeline.pttl(key)
+        const results = await pipeline.exec()
+        if (results && results.length === 2) {
+          count = results[0][1] as number
+          const ttl = results[1][1] as number
+          
+          if (count === 1 || ttl < 0) {
+            // First request or key without TTL, set expiry
+            await redis.pexpire(key, options.windowMs)
+            resetTime = now + options.windowMs
+          } else {
+            resetTime = now + ttl
+          }
+        }
+      } catch (e) {
+        console.error('Redis rate limit error:', e)
+        // Fail open if Redis fails
+        return handler(req, context)
       }
-      return handler(req, context)
+    } else {
+      // In-memory fallback
+      const record = store[key]
+      if (!record || record.resetTime < now) {
+        // New window
+        count = 1
+        resetTime = now + options.windowMs
+        if (Object.keys(store).length < MAX_MEMORY_KEYS) {
+          store[key] = { count, resetTime }
+        }
+      } else {
+        record.count++
+        count = record.count
+        resetTime = record.resetTime
+      }
     }
 
-    if (record.count >= options.maxRequests) {
+    if (count > options.maxRequests) {
       // Rate limit exceeded
-      const retryAfter = Math.ceil((record.resetTime - now) / 1000)
+      const retryAfter = Math.ceil((resetTime - now) / 1000)
       
       return NextResponse.json(
         {
@@ -93,22 +133,19 @@ export function createRateLimiter(options: RateLimitOptions) {
             'Retry-After': retryAfter.toString(),
             'X-RateLimit-Limit': options.maxRequests.toString(),
             'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': new Date(record.resetTime).toISOString(),
+            'X-RateLimit-Reset': new Date(resetTime).toISOString(),
           },
         }
       )
     }
-
-    // Increment counter
-    record.count++
 
     // Call handler
     const response = await handler(req, context)
 
     // Add rate limit headers
     response.headers.set('X-RateLimit-Limit', options.maxRequests.toString())
-    response.headers.set('X-RateLimit-Remaining', (options.maxRequests - record.count).toString())
-    response.headers.set('X-RateLimit-Reset', new Date(record.resetTime).toISOString())
+    response.headers.set('X-RateLimit-Remaining', Math.max(0, options.maxRequests - count).toString())
+    response.headers.set('X-RateLimit-Reset', new Date(resetTime).toISOString())
 
     return response
   }
@@ -137,6 +174,12 @@ export const searchLimiter = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 30,
   message: 'Too many search requests, please slow down',
+})
+
+export const viewLimiter = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 100, // Allow 100 listing views per minute per user/IP
+  message: 'Too many listing views, please slow down',
 })
 
 export const publicApiLimiter = createRateLimiter({

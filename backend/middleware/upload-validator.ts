@@ -1,4 +1,5 @@
 import { ApiError } from './error-handler'
+import { adminDb } from '@/backend/lib/firebase-admin/config'
 
 // Allowed file types and their magic bytes signatures
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -239,47 +240,52 @@ export async function validateUploadedFile(
 /**
  * Track upload counts per user to enforce rate limits
  */
-const uploadCounts = new Map<string, { count: number; resetTime: number }>()
-
-export function checkUploadRateLimit(userId: string, maxUploads: number = 20): void {
+export async function checkUploadRateLimit(userId: string, maxUploads: number = 20): Promise<void> {
   const now = Date.now()
   const hourInMs = 60 * 60 * 1000
   
-  const record = uploadCounts.get(userId)
+  const userRef = adminDb.collection('uploadLimits').doc(userId)
   
-  if (!record || record.resetTime < now) {
-    // New window or expired
-    uploadCounts.set(userId, {
-      count: 1,
-      resetTime: now + hourInMs,
-    })
-    return
-  }
-  
-  if (record.count >= maxUploads) {
-    const minutesRemaining = Math.ceil((record.resetTime - now) / (60 * 1000))
-    throw new ApiError(
-      429,
-      `Upload limit reached. Please try again in ${minutesRemaining} minutes`
-    )
-  }
-  
-  record.count++
-}
-
-export function incrementUploadCount(userId: string): void {
-  const record = uploadCounts.get(userId)
-  if (record && record.resetTime > Date.now()) {
-    record.count++
-  }
-}
-
-// Cleanup old entries periodically
-setInterval(() => {
-  const now = Date.now()
-  Array.from(uploadCounts.entries()).forEach(([userId, record]) => {
-    if (record.resetTime < now) {
-      uploadCounts.delete(userId)
+  await adminDb.runTransaction(async (transaction) => {
+    const doc = await transaction.get(userRef)
+    
+    if (!doc.exists) {
+      transaction.set(userRef, {
+        count: 1,
+        resetTime: now + hourInMs
+      })
+      return
     }
+    
+    const data = doc.data()!
+    if (data.resetTime < now) {
+      transaction.set(userRef, {
+        count: 1,
+        resetTime: now + hourInMs
+      })
+      return
+    }
+    
+    if (data.count >= maxUploads) {
+      const minutesRemaining = Math.ceil((data.resetTime - now) / (60 * 1000))
+      throw new ApiError(
+        429,
+        `Upload limit reached. Please try again in ${minutesRemaining} minutes`
+      )
+    }
+    
+    transaction.update(userRef, {
+      count: data.count + 1
+    })
   })
-}, 10 * 60 * 1000) // Every 10 minutes
+}
+
+export async function incrementUploadCount(userId: string): Promise<void> {
+  const userRef = adminDb.collection('uploadLimits').doc(userId)
+  const doc = await userRef.get()
+  if (doc.exists && doc.data()!.resetTime > Date.now()) {
+    await userRef.update({
+      count: doc.data()!.count + 1
+    })
+  }
+}

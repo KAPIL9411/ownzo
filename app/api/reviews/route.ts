@@ -45,8 +45,17 @@ async function postHandler(req: NextRequest, { user }: any) {
       validatedData.comment
     )
 
-    // Update seller's trust score
-    await userRepository.updateTrustScore(validatedData.sellerId)
+    // Get current user to check if this is their first review
+    const seller = await userRepository.getUserById(validatedData.sellerId)
+    const isFirstReview = !seller?.reviewCount || seller.reviewCount === 0
+    
+    // Update seller's rating and review count
+    // (This automatically calls updateTrustScore inside)
+    await userRepository.updateRating(
+      validatedData.sellerId,
+      validatedData.rating,
+      isFirstReview
+    )
 
     return NextResponse.json(
       {

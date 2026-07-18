@@ -3,7 +3,7 @@ import { requireAuth } from '@/backend/middleware/auth'
 import { listingRepository } from '@/backend/repositories/listing.repository'
 import { errorHandler } from '@/backend/middleware/error-handler'
 import { requireCSRF } from '@/backend/middleware/csrf'
-import { apiLimiter } from '@/backend/middleware/rate-limit'
+import { apiLimiter, withRateLimit } from '@/backend/middleware/rate-limit'
 import { listingFiltersSchema, createListingSchema } from '@/backend/schemas/listing.schema'
 import { validateSafe } from '@/backend/utils/validate'
 
@@ -80,17 +80,4 @@ async function postHandler(req: NextRequest, { user }: any) {
 }
 
 export const GET = getHandler
-export async function POST(req: NextRequest) {
-  try {
-    const result = await apiLimiter(req, async (req, context) => {
-      const authResult = await requireAuth(async (req: NextRequest, authContext: any) => {
-        return requireCSRF(postHandler)(req, authContext)
-      })(req, context)
-      return authResult
-    }, {})
-    
-    return result
-  } catch (error) {
-    return errorHandler(error)
-  }
-}
+export const POST = requireAuth(withRateLimit(apiLimiter, requireCSRF(postHandler)))

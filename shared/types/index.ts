@@ -58,6 +58,7 @@ export interface Listing {
   createdAt: Date
   updatedAt: Date
   expiresAt?: Date
+  soldAt?: Date  // 🔒 ADDED: Track when listing was sold (for race condition prevention)
 }
 
 export type ListingStatus = 'active' | 'sold' | 'expired' | 'deleted'

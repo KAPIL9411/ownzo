@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/backend/middleware/auth'
 import { uploadImage, uploadVideo } from '@/backend/lib/cloudinary/upload'
 import { errorHandler, ApiError } from '@/backend/middleware/error-handler'
-import { uploadLimiter } from '@/backend/middleware/rate-limit'
+import { uploadLimiter, withRateLimit } from '@/backend/middleware/rate-limit'
 import { validateUploadedFile, checkUploadRateLimit } from '@/backend/middleware/upload-validator'
 
 async function uploadHandler(req: NextRequest, { user }: any) {
@@ -65,15 +65,4 @@ async function uploadHandler(req: NextRequest, { user }: any) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const result = await uploadLimiter(req, async (req, context) => {
-      const authResult = await requireAuth(uploadHandler)(req, context)
-      return authResult
-    }, {})
-    
-    return result
-  } catch (error) {
-    return errorHandler(error)
-  }
-}
+export const POST = requireAuth(withRateLimit(uploadLimiter, uploadHandler))

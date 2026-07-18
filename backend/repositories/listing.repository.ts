@@ -35,6 +35,7 @@ export class ListingRepository {
     }
 
     await listingRef.set(listing)
+    await userRepository.incrementListingCount(sellerId, 1)
     return listing
   }
 
@@ -91,48 +92,62 @@ export class ListingRepository {
 
     // Cursor-based pagination (better for large datasets)
     const limit = filters.limit || 20
+    let filteredListings: Listing[] = []
+    let hasMore = false
+    let currentCursorDoc: any = null
+    let lastFetchedDoc: any = null
     
     if (filters.cursor) {
-      // Decode cursor (base64 encoded document ID + timestamp)
+      // Decode cursor (base64 encoded document ID)
       try {
-        const cursorData = JSON.parse(
-          Buffer.from(filters.cursor, 'base64').toString('utf-8')
-        )
-        const cursorDoc = await this.db
-          .collection(LISTINGS_COLLECTION)
-          .doc(cursorData.id)
-          .get()
-        
-        if (cursorDoc.exists) {
-          query = query.startAfter(cursorDoc)
-        }
+        const cursorData = JSON.parse(Buffer.from(filters.cursor, 'base64').toString('utf-8'))
+        currentCursorDoc = await this.db.collection(LISTINGS_COLLECTION).doc(cursorData.id).get()
       } catch (error) {
         console.error('Invalid cursor:', error)
-        // Continue without cursor if invalid
       }
     }
 
-    query = query.limit(limit + 1) // Fetch one extra to check hasMore
+    let maxBatches = 5
+    while (filteredListings.length < limit && maxBatches > 0) {
+      maxBatches--
+      let batchQuery = query
+      if (currentCursorDoc && currentCursorDoc.exists) {
+        batchQuery = batchQuery.startAfter(currentCursorDoc)
+      }
 
-    const snapshot = await query.get()
-    const hasMore = snapshot.docs.length > limit
-    
-    // Remove the extra doc if exists
-    const docs = hasMore ? snapshot.docs.slice(0, limit) : snapshot.docs
-    
-    const listings = serializeSnapshots<Listing>(docs)
-
-    // Filter by price range in memory
-    let filteredListings = listings
-    if (filters.minPrice !== undefined) {
-      filteredListings = filteredListings.filter(
-        (l) => l.price >= filters.minPrice!
-      )
-    }
-    if (filters.maxPrice !== undefined) {
-      filteredListings = filteredListings.filter(
-        (l) => l.price <= filters.maxPrice!
-      )
+      // Fetch batch Limit + 1 to check hasMore
+      const batchLimit = limit - filteredListings.length
+      batchQuery = batchQuery.limit(batchLimit + 1)
+      
+      const snapshot = await batchQuery.get()
+      const fetchedDocs = snapshot.docs
+      
+      hasMore = fetchedDocs.length > batchLimit
+      const docsToProcess = hasMore ? fetchedDocs.slice(0, batchLimit) : fetchedDocs
+      
+      if (docsToProcess.length === 0) {
+        break
+      }
+      
+      currentCursorDoc = docsToProcess[docsToProcess.length - 1]
+      lastFetchedDoc = currentCursorDoc
+      
+      const listings = serializeSnapshots<Listing>(docsToProcess)
+      
+      // Filter by price range in memory
+      let batchFiltered = listings
+      if (filters.minPrice !== undefined) {
+        batchFiltered = batchFiltered.filter((l) => l.price >= filters.minPrice!)
+      }
+      if (filters.maxPrice !== undefined) {
+        batchFiltered = batchFiltered.filter((l) => l.price <= filters.maxPrice!)
+      }
+      
+      filteredListings.push(...batchFiltered)
+      
+      if (!hasMore) {
+        break
+      }
     }
 
     // Batch fetch seller info to prevent N+1 queries
@@ -147,12 +162,10 @@ export class ListingRepository {
 
     // Generate next cursor
     let nextCursor: string | undefined
-    if (hasMore && enrichedListings.length > 0) {
-      const lastListing = enrichedListings[enrichedListings.length - 1]
+    if (hasMore && lastFetchedDoc) {
       nextCursor = Buffer.from(
         JSON.stringify({
-          id: lastListing.id,
-          createdAt: lastListing.createdAt,
+          id: lastFetchedDoc.id,
         })
       ).toString('base64')
     }
@@ -193,17 +206,49 @@ export class ListingRepository {
   }
 
   async deleteListing(id: string): Promise<void> {
-    await this.db.collection(LISTINGS_COLLECTION).doc(id).update({
-      status: 'deleted',
-      updatedAt: new Date(),
-    })
+    const listing = await this.getListingById(id)
+    if (listing) {
+      await this.db.collection(LISTINGS_COLLECTION).doc(id).update({
+        status: 'deleted',
+        updatedAt: new Date(),
+      })
+      await userRepository.incrementListingCount(listing.sellerId, -1)
+    }
   }
 
   async incrementViews(id: string): Promise<void> {
+    // 🔒 SECURITY FIX: Validate listing exists before incrementing views
+    // Prevents view count manipulation on non-existent/deleted listings
     const listingRef = this.db.collection(LISTINGS_COLLECTION).doc(id)
-    await listingRef.update({
-      views: admin.firestore.FieldValue.increment(1),
-    })
+    
+    // Use transaction to check existence and increment atomically
+    try {
+      await this.db.runTransaction(async (transaction) => {
+        const doc = await transaction.get(listingRef)
+        
+        // 🔒 CRITICAL: Check if listing exists and is active
+        if (!doc.exists) {
+          throw new Error('Listing not found')
+        }
+
+        const listing = doc.data() as Listing
+        
+        // 🔒 CRITICAL: Only increment views for active listings
+        // Prevents view manipulation on deleted/expired listings
+        if (listing.status !== 'active') {
+          throw new Error(`Cannot increment views: listing is ${listing.status}`)
+        }
+
+        // Now safe to increment
+        transaction.update(listingRef, {
+          views: admin.firestore.FieldValue.increment(1),
+        })
+      })
+    } catch (error) {
+      // Silently fail for view count errors (non-critical)
+      // Don't expose listing status to potential attackers
+      console.warn(`[LISTING] Failed to increment views for ${id}:`, (error as Error).message)
+    }
   }
 
   async getUserListings(sellerId: string): Promise<Listing[]> {

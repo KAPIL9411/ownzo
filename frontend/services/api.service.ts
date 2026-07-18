@@ -5,6 +5,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
 
 // Store CSRF token
 let csrfToken: string | null = null
+// 🔒 SECURITY FIX: Track CSRF fetch promise to prevent race condition
+let csrfFetchPromise: Promise<void> | null = null
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -16,7 +18,7 @@ const apiClient = axios.create({
 
 // Request interceptor to add auth token and CSRF token
 apiClient.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const token = useAuthStore.getState().token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -24,8 +26,27 @@ apiClient.interceptors.request.use(
     
     // Add CSRF token for state-changing requests
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(config.method?.toUpperCase() || '')) {
+      // 🔒 SECURITY FIX: Wait for CSRF token if it's being fetched
+      if (csrfFetchPromise) {
+        try {
+          await csrfFetchPromise
+        } catch (e) {
+          // Continue even if CSRF fetch fails
+        }
+      }
+      
       if (csrfToken) {
         config.headers['x-csrf-token'] = csrfToken
+      } else if (useAuthStore.getState().isAuthenticated) {
+        // 🔒 SECURITY FIX: If authenticated but no token, fetch it now
+        try {
+          await fetchCSRFToken()
+          if (csrfToken) {
+            config.headers['x-csrf-token'] = csrfToken
+          }
+        } catch (e) {
+          console.warn('Failed to fetch CSRF token before request')
+        }
       }
     }
     
@@ -48,17 +69,27 @@ apiClient.interceptors.response.use(
       }
     }
     
-    // If CSRF token is invalid, fetch new one and retry
+    // 🔒 SECURITY FIX: If CSRF token is invalid, fetch new one and retry ONCE
     if (error.response?.status === 403 && 
-        error.response?.data?.error?.includes('CSRF')) {
+        error.response?.data?.error?.includes('CSRF') &&
+        error.config && 
+        !(error.config as any).__isRetry) { // Prevent infinite retry loop
       try {
         await fetchCSRFToken()
-        // Retry the original request
-        if (error.config) {
-          return apiClient.request(error.config)
+        
+        // Mark this request as a retry to prevent infinite loop
+        const retryConfig = { ...error.config, __isRetry: true } as any
+        
+        // Add the fresh CSRF token
+        if (csrfToken) {
+          retryConfig.headers = retryConfig.headers || {}
+          retryConfig.headers['x-csrf-token'] = csrfToken
         }
+        
+        return apiClient.request(retryConfig)
       } catch (csrfError) {
-        // If fetching CSRF token fails, proceed with original error
+        console.error('Failed to fetch CSRF token on retry:', csrfError)
+        // Proceed with original error
       }
     }
     
@@ -68,14 +99,27 @@ apiClient.interceptors.response.use(
 
 // Fetch CSRF token from server
 export async function fetchCSRFToken(): Promise<void> {
-  try {
-    const response = await apiClient.get('/auth/csrf-token')
-    if (response.data.success && response.data.data.csrfToken) {
-      csrfToken = response.data.data.csrfToken
-    }
-  } catch (error) {
-    console.error('Failed to fetch CSRF token:', error)
+  // 🔒 SECURITY FIX: If already fetching, wait for existing promise
+  if (csrfFetchPromise) {
+    return csrfFetchPromise
   }
+  
+  csrfFetchPromise = (async () => {
+    try {
+      const response = await apiClient.get('/auth/csrf-token')
+      if (response.data.success && response.data.data.csrfToken) {
+        csrfToken = response.data.data.csrfToken
+      }
+    } catch (error) {
+      console.error('Failed to fetch CSRF token:', error)
+      throw error
+    } finally {
+      // Clear the promise after completion
+      csrfFetchPromise = null
+    }
+  })()
+  
+  return csrfFetchPromise
 }
 
 // Initialize CSRF token on first authenticated request
@@ -88,6 +132,7 @@ export async function initializeCSRF(): Promise<void> {
 // Clear CSRF token (e.g., on logout)
 export function clearCSRFToken(): void {
   csrfToken = null
+  csrfFetchPromise = null
 }
 
 export class ApiService {
