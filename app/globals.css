@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import 'leaflet/dist/leaflet.css';
+
+/* ─── CSS Variables ─────────────────────────────────────── */
+@layer base {
+  :root {
+    /* shadcn compat */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 160 54% 18%;          /* #1B4332 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 20%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 94%;
+    --accent-foreground: 0 0% 20%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 91%;
+    --input: 0 0% 91%;
+    --ring: 160 54% 18%;
+    --radius: 0.5rem;
+
+    /* brand tokens */
+    --c-green:   #1B4332;
+    --c-green2:  #2D6A4F;
+    --c-crimson: #B91C1C;
+    --c-crimson2:#991B1B;
+    --c-orange:  #F97316;
+    --c-orange2: #EA580C;
+    --c-gray-bg: #F5F5F5;
+  }
+}
+
+/* ─── Base reset ─────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { @apply border-border box-border; }
+
+  body {
+    @apply bg-white text-[#1A1A1A] antialiased;
+    font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  h1,h2,h3,h4,h5,h6 { font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif; }
+}
+
+/* ─── Reusable brand components ────────────────────────────
+   These exactly replicate the TazajMart reference design
+   ─────────────────────────────────────────────────────────── */
+@layer components {
+
+  /* ── Buttons ── */
+  .btn-orange {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-bold
+           text-white text-sm px-5 py-2.5 transition-all duration-150 active:scale-[0.98];
+    background-color: var(--c-orange);
+  }
+  .btn-orange:hover { background-color: var(--c-orange2); }
+
+  .btn-green {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-bold
+           text-white text-sm px-5 py-2.5 transition-all duration-150 active:scale-[0.98];
+    background-color: var(--c-green);
+  }
+  .btn-green:hover { background-color: var(--c-green2); }
+
+  /* ── Dark-green circle + button (reference product card) ── */
+  .btn-add {
+    @apply shrink-0 flex items-center justify-center rounded-full text-white font-extrabold
+           text-2xl leading-none transition-all duration-150 active:scale-90;
+    width: 36px; height: 36px;
+    background-color: var(--c-green);
+  }
+  .btn-add:hover { background-color: var(--c-green2); }
+
+  /* ── Section header ── */
+  .section-title {
+    @apply text-xl font-extrabold text-[#1A1A1A];
+  }
+  .view-all-link {
+    @apply inline-flex items-center gap-1 text-sm font-bold transition-colors;
+    color: var(--c-orange);
+  }
+  .view-all-link:hover { color: var(--c-orange2); }
+
+  /* ── Badge pills (reference) ── */
+  .badge-sale    { @apply inline-block text-[10px] font-extrabold px-2 py-0.5 rounded text-white leading-tight; background-color: var(--c-crimson); }
+  .badge-organic { @apply inline-block text-[10px] font-extrabold px-2 py-0.5 rounded text-white leading-tight; background-color: var(--c-green); }
+  .badge-frozen  { @apply inline-block text-[10px] font-extrabold px-2 py-0.5 rounded text-white leading-tight; background-color: #1D4ED8; }
+  .badge-off     { @apply inline-block text-[10px] font-extrabold px-2 py-0.5 rounded text-white leading-tight; background-color: var(--c-orange); }
+
+  /* ── Product card (exact reference match) ── */
+  .product-card {
+    @apply bg-white rounded-xl border border-gray-100 overflow-hidden cursor-pointer
+           transition-all duration-200;
+  }
+  .product-card:hover {
+    @apply shadow-md -translate-y-px;
+  }
+
+  /* ── Form input ── */
+  .input-field {
+    @apply w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm
+           placeholder:text-gray-400 outline-none transition-colors
+           focus:border-[#1B4332] focus:ring-2 focus:ring-[#1B4332]/20
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ── Skeleton ── */
+  .skeleton { @apply animate-pulse bg-gray-100 rounded-lg; }
+}
+
+/* ─── Utilities ─────────────────────────────────────────── */
+@layer utilities {
+  .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .line-clamp-3 { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
+  .scrollbar-hide::-webkit-scrollbar { display:none; }
+}
+
+/* ─── Animations ─────────────────────────────────────────── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+html { scroll-behavior:smooth; }
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#d4d4d4; border-radius:99px; }
+::-webkit-scrollbar-thumb:hover { background:#a3a3a3; }
+
+/* ─── Mobile & Tablet Responsive Styles ──────────────────── */
+@layer utilities {
+  /* Container responsive padding */
+  .container {
+    @apply px-4 mx-auto;
+    max-width: 1400px;
+  }
+  
+  @media (min-width: 640px) {
+    .container { @apply px-6; }
+  }
+  
+  @media (min-width: 1024px) {
+    .container { @apply px-8; }
+  }
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 767px) {
+  body { font-size: 14px; }
+  
+  .section-title { @apply text-lg; }
+  
+  .btn-orange, .btn-green {
+    @apply text-xs px-4 py-2;
+  }
+  
+  /* Make cards smaller on mobile */
+  .product-card {
+    @apply text-sm;
+  }
+  
+  /* Reduce spacing on mobile */
+  section { @apply mb-8; }
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .container { max-width: 768px; }
+}

@@ -1,0 +1,79 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging Environment
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test -- --run
+        env:
+          NODE_ENV: test
+      
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.STAGING_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.STAGING_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.STAGING_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.STAGING_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.STAGING_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.STAGING_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ${{ secrets.STAGING_CLOUDINARY_CLOUD_NAME }}
+          FIREBASE_PROJECT_ID: ${{ secrets.STAGING_FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.STAGING_FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.STAGING_FIREBASE_PRIVATE_KEY }}
+          CLOUDINARY_API_KEY: ${{ secrets.STAGING_CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.STAGING_CLOUDINARY_API_SECRET }}
+          CSRF_SECRET: ${{ secrets.STAGING_CSRF_SECRET }}
+          SENTRY_DSN: ${{ secrets.STAGING_SENTRY_DSN }}
+      
+      - name: Deploy Firestore indexes and rules
+        run: |
+          npm install -g firebase-tools
+          firebase deploy --only firestore:indexes,firestore:rules --project ${{ secrets.STAGING_FIREBASE_PROJECT_ID }} --token ${{ secrets.FIREBASE_TOKEN }}
+      
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./
+      
+      - name: Run smoke tests
+        run: |
+          echo "Waiting for deployment to be live..."
+          sleep 30
+          curl -f ${{ secrets.STAGING_URL }}/api/health || exit 1
+          echo "Smoke tests passed"
+      
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          text: 'Staging deployment ${{ job.status }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

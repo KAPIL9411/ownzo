@@ -1,0 +1,39 @@
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="800" fill="#6B1B1B"/>
+  <g filter="url(#blur)" opacity="0.6">
+    <!-- Organic flowing swirls matching your maroon texture -->
+    <path d="M-50,150 Q100,80 200,120 T400,160 Q500,200 600,140 T800,180 Q900,120 1000,160 T1200,200" 
+          fill="none" stroke="#8B1A1A" stroke-width="90" stroke-linecap="round"/>
+    <path d="M-100,350 Q0,250 120,300 T320,340 Q420,390 520,320 T720,360 Q820,290 920,340 T1120,390" 
+          fill="none" stroke="#A52A2A" stroke-width="80" stroke-linecap="round"/>
+    <path d="M100,80 Q200,30 300,80 T500,110 Q600,160 700,90 T900,130 Q1000,60 1100,110" 
+          fill="none" stroke="#B83434" stroke-width="70" stroke-linecap="round"/>
+    <path d="M-150,550 Q-50,450 70,500 T270,540 Q370,590 470,520 T670,560 Q770,490 870,540 T1070,590" 
+          fill="none" stroke="#9F2B2B" stroke-width="85" stroke-linecap="round"/>
+    <path d="M250,280 Q350,230 450,280 T650,310 Q750,360 850,290 T1050,330 Q1150,260 1250,310" 
+          fill="none" stroke="#C04848" stroke-width="65" stroke-linecap="round"/>
+    
+    <!-- Blob shapes for organic feel -->
+    <ellipse cx="850" cy="180" rx="160" ry="130" fill="#A03030" opacity="0.2"/>
+    <ellipse cx="320" cy="480" rx="190" ry="150" fill="#8E1F1F" opacity="0.25"/>
+    <ellipse cx="1000" cy="580" rx="140" ry="120" fill="#B53838" opacity="0.22"/>
+    <circle cx="180" cy="130" r="90" fill="#952525" opacity="0.15"/>
+    <circle cx="1100" cy="380" r="70" fill="#A82E2E" opacity="0.18"/>
+    
+    <!-- Additional swirl paths for depth -->
+    <path d="M300,600 Q400,520 500,580 T700,620 Q800,670 900,600 T1100,640" 
+          fill="none" stroke="#7A1515" stroke-width="75" stroke-linecap="round"/>
+    <path d="M-80,450 Q20,380 120,430 T320,460 Q420,510 520,440 T720,480" 
+          fill="none" stroke="#BB3A3A" stroke-width="60" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Subtle sparkle accent -->
+  <circle cx="920" cy="120" r="3" fill="white" opacity="0.6"/>
+  <circle cx="350" cy="280" r="2.5" fill="white" opacity="0.5"/>
+  <circle cx="780" cy="520" r="2" fill="white" opacity="0.4"/>
+</svg>

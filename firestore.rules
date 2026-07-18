@@ -1,0 +1,201 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuth() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function validStr(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+
+    function validPrice(p) {
+      return p is number && p > 0 && p <= 10000000;
+    }
+
+    // Is the authenticated user a participant of this chat?
+    // Supports both participantIds array AND buyerId/sellerId fields
+    function isChatParticipant(chatData) {
+      return isAuth() && (
+        ('participantIds' in chatData && request.auth.uid in chatData.participantIds) ||
+        request.auth.uid == chatData.buyerId ||
+        request.auth.uid == chatData.sellerId
+      );
+    }
+
+    // ── Users ────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:   if isAuth();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if false;
+    }
+
+    // ── Listings ─────────────────────────────────────────────
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create: if isAuth()
+        && validStr(request.resource.data.title, 3, 100)
+        && validStr(request.resource.data.description, 10, 2000)
+        && validPrice(request.resource.data.price)
+        && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isAuth()
+        && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow delete: if isAuth()
+        && (resource.data.sellerId == request.auth.uid || isAdmin());
+    }
+
+    // ── Buy Requests ──────────────────────────────────────────
+    match /buyRequests/{requestId} {
+      allow read: if true;
+      allow create: if isAuth()
+        && validStr(request.resource.data.title, 3, 100)
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuth()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuth()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // ── Chats ────────────────────────────────────────────────
+    // Stored with buyerId + sellerId (and optional participantIds array)
+    match /chats/{chatId} {
+      allow read: if isChatParticipant(resource.data);
+      allow create: if isAuth() && (
+        ('participantIds' in request.resource.data &&
+          request.auth.uid in request.resource.data.participantIds) ||
+        request.auth.uid == request.resource.data.buyerId ||
+        request.auth.uid == request.resource.data.sellerId
+      );
+      allow update: if isChatParticipant(resource.data);
+      allow delete: if false;
+    }
+
+    // ── Messages ─────────────────────────────────────────────
+    // Allow read if user is participant of the parent chat
+    match /messages/{messageId} {
+      allow read: if isAuth() && (
+        // user is sender
+        resource.data.senderId == request.auth.uid ||
+        // or user is a participant in the chat this message belongs to
+        exists(/databases/$(database)/documents/chats/$(resource.data.chatId)) &&
+        isChatParticipant(
+          get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data
+        )
+      );
+      allow create: if isAuth()
+        && request.resource.data.senderId == request.auth.uid
+        && validStr(request.resource.data.message, 1, 4000)
+        && exists(/databases/$(database)/documents/chats/$(request.resource.data.chatId))
+        && isChatParticipant(
+             get(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data
+           );
+      allow update: if false;
+      allow delete: if isAuth() && resource.data.senderId == request.auth.uid;
+    }
+
+    // ── Notifications ─────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read:   if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if false;  // server-only
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── Reviews ───────────────────────────────────────────────
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuth()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update: if isAuth() && resource.data.buyerId == request.auth.uid;
+      allow delete: if isAuth()
+        && (resource.data.buyerId == request.auth.uid || isAdmin());
+    }
+
+    // ── Wishlist ──────────────────────────────────────────────
+    match /wishlist/{wishlistId} {
+      allow read:   if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ── Offers ────────────────────────────────────────────────
+    match /offers/{offerId} {
+      allow read: if isAuth() && (
+        resource.data.userId          == request.auth.uid ||
+        resource.data.listingOwnerId  == request.auth.uid
+      );
+      allow create: if isAuth()
+        && request.resource.data.userId == request.auth.uid
+        && validPrice(request.resource.data.offerPrice);
+      allow update: if isAuth() && (
+        resource.data.userId         == request.auth.uid ||
+        resource.data.listingOwnerId == request.auth.uid
+      );
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── Categories ────────────────────────────────────────────
+    match /categories/{categoryId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Communities ───────────────────────────────────────────
+    match /communities/{communityId} {
+      allow read:   if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Community memberships (join/leave) ────────────────────
+    match /userCommunities/{membershipId} {
+      // membershipId = userId_communityId
+      allow read:   if isAuth() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ── Community join requests ───────────────────────────────
+    match /communityJoinRequests/{requestId} {
+      allow read: if isAuth() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Reports ───────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow read:   if isAdmin();
+      allow create: if isAuth() && request.resource.data.reporterId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── FCM tokens ────────────────────────────────────────────
+    match /fcmTokens/{userId} {
+      allow read:   if isOwner(userId) || isAdmin();
+      allow write:  if isOwner(userId);
+    }
+  }
+}
