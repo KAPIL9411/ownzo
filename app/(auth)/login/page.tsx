@@ -16,22 +16,55 @@ export default function LoginPage() {
   const { signInWithGoogle, isAuthenticated } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [transitioning, setTransitioning] = useState(false)
 
+  // If already authenticated, start transition overlay then redirect
   useEffect(() => {
-    if (isAuthenticated) router.replace('/')
+    if (isAuthenticated) {
+      setTransitioning(true)
+      // Small delay so the overlay is visible before the route changes
+      const t = setTimeout(() => router.replace('/'), 300)
+      return () => clearTimeout(t)
+    }
   }, [isAuthenticated, router])
 
   async function handleGoogleSignIn() {
     setLoading(true)
     try {
       await signInWithGoogle()
+      // signInWithGoogle resolves after popup closes.
+      // Firebase onAuthStateChanged will fire async — show the transition overlay
+      setTransitioning(true)
     } catch {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <>
+      {/* Full-screen branded transition overlay - covers the async gap between popup close and app load */}
+      {transitioning && (
+        <div
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white"
+          style={{ animation: 'fadeIn 0.2s ease-out' }}
+        >
+          <img
+            src="/images/logo/logo.webp"
+            alt="Ownzo"
+            className="h-16 w-16 object-contain mb-5"
+            style={{ animation: 'breathe 1.5s ease-in-out infinite' }}
+          />
+          <p className="text-sm text-gray-400 font-medium tracking-wide" style={{ animation: 'fadeIn 0.5s ease-out 0.2s both' }}>
+            Taking you in…
+          </p>
+          <style>{`
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes breathe { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(0.92); opacity:0.7; } }
+          `}</style>
+        </div>
+      )}
+
+      <div className="min-h-screen grid lg:grid-cols-2">
 
       {/* Left Panel - Brand */}
       <div className="hidden lg:flex flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-[#7C1D1D] via-[#9B2C2C] to-[#7C1D1D] text-white relative overflow-hidden">
@@ -226,5 +259,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

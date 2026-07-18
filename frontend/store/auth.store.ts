@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { User } from '@/shared/types'
 
 interface AuthState {
@@ -36,11 +36,19 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      // ✅ KEY FIX: Once localStorage is rehydrated, immediately stop loading.
+      // This prevents returning users from seeing the spinner on every page refresh.
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.isLoading = false
+        }
+      },
     }
   )
 )
