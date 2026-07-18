@@ -5,7 +5,7 @@ let app: admin.app.App
 
 if (!admin.apps.length) {
   // Handle private key formatting for different environments
-  let privateKey = process.env.FIREBASE_PRIVATE_KEY
+  let privateKey: string = process.env.FIREBASE_PRIVATE_KEY || ''
   
   if (!privateKey) {
     throw new Error('FIREBASE_PRIVATE_KEY environment variable is not set')
@@ -13,7 +13,7 @@ if (!admin.apps.length) {
   
   // Handle different private key formats
   // 1. If it's a JSON string, parse it
-  if (privateKey && privateKey.startsWith('{')) {
+  if (privateKey.startsWith('{')) {
     try {
       const parsed = JSON.parse(privateKey)
       privateKey = parsed.privateKey || parsed.private_key || privateKey
@@ -23,12 +23,10 @@ if (!admin.apps.length) {
   }
   
   // 2. Replace escaped newlines with actual newlines
-  if (privateKey) {
-    privateKey = privateKey.replace(/\\n/g, '\n')
-  }
+  privateKey = privateKey.replace(/\\n/g, '\n')
   
   // 3. If it doesn't start with BEGIN, it might be base64 encoded
-  if (privateKey && !privateKey.includes('BEGIN PRIVATE KEY')) {
+  if (!privateKey.includes('BEGIN PRIVATE KEY')) {
     try {
       privateKey = Buffer.from(privateKey, 'base64').toString('utf-8')
     } catch (e) {
