@@ -1,13 +1,14 @@
 importScripts('https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging-compat.js');
 
+// Firebase configuration - these are public values, safe to hardcode
 firebase.initializeApp({
-  apiKey:            self.FIREBASE_API_KEY            || '',
-  authDomain:        self.FIREBASE_AUTH_DOMAIN        || '',
-  projectId:         self.FIREBASE_PROJECT_ID         || '',
-  storageBucket:     self.FIREBASE_STORAGE_BUCKET     || '',
-  messagingSenderId: self.FIREBASE_MESSAGING_SENDER_ID|| '',
-  appId:             self.FIREBASE_APP_ID             || '',
+  apiKey:            'AIzaSyDW0ad5EKVx7BEgT8AKyDViTPfapwL4pd4',
+  authDomain:        'ownzo-68cc6.firebaseapp.com',
+  projectId:         'ownzo-68cc6',
+  storageBucket:     'ownzo-68cc6.firebasestorage.app',
+  messagingSenderId: '97690045585',
+  appId:             '1:97690045585:web:f0ccccc8e4519db9c48330',
 });
 
 const messaging = firebase.messaging();
