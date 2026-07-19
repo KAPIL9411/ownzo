@@ -82,26 +82,13 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Company Links */}
+          {/* Company Links - Temporarily removed non-existent pages */}
           <div className="lg:col-span-2">
             <h3 className="font-bold text-[#1B4332] text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4">Company</h3>
             <ul className="space-y-2 sm:space-y-2.5">
-              {[
-                { label: 'About Us', href: '/about' },
-                { label: 'Contact', href: '/contact' },
-                { label: 'Careers', href: '/careers' },
-                { label: 'Blog', href: '/blog' },
-              ].map(({ label, href }) => (
-                <li key={label}>
-                  <Link
-                    href={href}
-                    className="text-gray-600 hover:text-[#1B4332] text-xs sm:text-sm transition-colors inline-flex items-center gap-2 group"
-                  >
-                    <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 opacity-0 group-hover:opacity-100 -ml-5 group-hover:ml-0 transition-all" />
-                    {label}
-                  </Link>
-                </li>
-              ))}
+              <li>
+                <span className="text-gray-400 text-xs sm:text-sm">Coming Soon</span>
+              </li>
             </ul>
           </div>
 
@@ -110,9 +97,8 @@ export function Footer() {
             <h3 className="font-bold text-[#1B4332] text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4">Support</h3>
             <ul className="space-y-2 sm:space-y-2.5 mb-4 sm:mb-6">
               {[
-                { label: 'Help Center', href: '/help' },
-                { label: 'Safety Tips', href: '/safety' },
-                { label: 'Report Issue', href: '/report' },
+                { label: 'Privacy Policy', href: '/legal/privacy' },
+                { label: 'Terms of Service', href: '/legal/terms' },
               ].map(({ label, href }) => (
                 <li key={label}>
                   <Link
@@ -149,9 +135,6 @@ export function Footer() {
               </Link>
               <Link href="/legal/terms" className="text-gray-500 hover:text-[#1B4332] transition-colors">
                 Terms of Service
-              </Link>
-              <Link href="/legal/cookies" className="text-gray-500 hover:text-[#1B4332] transition-colors">
-                Cookies
               </Link>
             </div>
           </div>
