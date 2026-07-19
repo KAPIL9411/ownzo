@@ -23,7 +23,7 @@ export class ChatRepository {
 
     const chatRef = this.db.collection(CHATS_COLLECTION).doc()
 
-    const chat: Chat = {
+    const chat: Partial<Chat> = {
       id: chatRef.id,
       listingId,
       buyerId,
@@ -33,8 +33,13 @@ export class ChatRepository {
       updatedAt: new Date(),
     }
 
-    await chatRef.set(chat)
-    return chat
+    // Remove undefined values
+    const cleanChat = Object.fromEntries(
+      Object.entries(chat).filter(([_, v]) => v !== undefined)
+    )
+
+    await chatRef.set(cleanChat)
+    return chat as Chat
   }
 
   async getChatById(id: string): Promise<Chat | null> {
@@ -104,16 +109,17 @@ export class ChatRepository {
   ): Promise<Message> {
     const messageRef = this.db.collection(MESSAGES_COLLECTION).doc()
 
+    // Build message data, excluding undefined values
     const messageData: Message = {
       id: messageRef.id,
       chatId,
       senderId,
       message,
       type,
-      imageUrl,
       read: false,
       createdAt: new Date(),
-    }
+      ...(imageUrl && { imageUrl }), // Only include if defined
+    } as Message
 
     await messageRef.set(messageData)
 
