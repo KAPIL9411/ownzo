@@ -24,6 +24,9 @@ async function uploadHandler(req: NextRequest, { user }: any) {
       throw new ApiError(400, 'Invalid upload type. Must be "image" or "video"')
     }
 
+    // Log upload attempt for debugging
+    console.log(`Upload attempt: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB) by user ${user.uid}`)
+
     // Comprehensive file validation
     const validatedFile = await validateUploadedFile(file, type)
 
@@ -49,6 +52,8 @@ async function uploadHandler(req: NextRequest, { user }: any) {
       })
     }
 
+    console.log(`Upload successful: ${result.secure_url}`)
+
     return NextResponse.json({
       success: true,
       data: {
@@ -60,9 +65,32 @@ async function uploadHandler(req: NextRequest, { user }: any) {
         bytes: result.bytes,
       },
     })
-  } catch (error) {
+  } catch (error: any) {
+    // Log error details for debugging
+    console.error('Upload error:', {
+      message: error.message,
+      stack: error.stack,
+      userId: user?.uid,
+    })
+    
+    // Return user-friendly error messages
+    if (error instanceof ApiError) {
+      return errorHandler(error)
+    }
+    
+    // Handle Cloudinary-specific errors
+    if (error.message?.includes('timeout') || error.message?.includes('ETIMEDOUT')) {
+      return errorHandler(new ApiError(408, 'Upload timeout - please check your internet connection and try again'))
+    }
+    
+    if (error.message?.includes('ECONNRESET') || error.message?.includes('ENOTFOUND') || error.message?.includes('Network error')) {
+      return errorHandler(new ApiError(503, 'Network error - please check your internet connection and try again'))
+    }
+    
     return errorHandler(error)
   }
 }
 
 export const POST = requireAuth(withRateLimit(uploadLimiter, uploadHandler))
+// Increase Vercel function timeout for uploads (if using Vercel Pro)
+export const maxDuration = 60 // 60 seconds max

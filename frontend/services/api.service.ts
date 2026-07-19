@@ -161,9 +161,16 @@ export class ApiService {
     formData.append('file', file)
     formData.append('type', type)
 
+    // Longer timeout for uploads (2 minutes)
     const response = await apiClient.post('/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+      },
+      timeout: 120000, // 2 minutes timeout
+      // Add retry configuration
+      validateStatus: (status) => {
+        // Accept 2xx status codes
+        return status >= 200 && status < 300
       },
     })
 

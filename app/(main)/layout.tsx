@@ -85,11 +85,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         className="min-h-screen bg-white flex flex-col"
         style={{ animation: 'fadeInUp 0.35s ease-out' }}
       >
-        <Header />
-        <main className="container flex-1" style={{ maxWidth: 1400, paddingTop: '5rem', paddingBottom: '2rem' }}>
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
+        {/* Header hidden on mobile (<768px) since mobile hero has logo/search/cart */}
+        <div className="hidden md:block">
+          <Header />
+        </div>
+        <main className="container flex-1" style={{ maxWidth: 1400, paddingBottom: '2rem' }}>
+          <div className="md:pt-20">
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </div>
         </main>
         <Footer />
         <BottomNav />
