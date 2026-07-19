@@ -81,13 +81,13 @@ NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=owxvjtwh
 
 ```bash
 NODE_ENV=production
-NEXT_PUBLIC_API_URL=https://your-vercel-app.vercel.app/api
+NEXT_PUBLIC_API_URL=https://www.ownzo.in/api
 CSRF_ENABLED=true
 CSRF_SECRET=3a238c59de5e8239403dca8e6b82ceff06352cf0de32237987e40e9784a58461
 RATE_LIMIT_ENABLED=true
 ```
 
-**⚠️ IMPORTANT:** Replace `your-vercel-app.vercel.app` with your actual Vercel domain!
+**⚠️ IMPORTANT:** Use your custom domain (www.ownzo.in) instead of the Vercel domain!
 
 ---
 
