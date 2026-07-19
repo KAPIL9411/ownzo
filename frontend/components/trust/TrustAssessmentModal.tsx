@@ -93,6 +93,7 @@ const DECISION_CFG = {
     title:      'Listing approved',
     subtitle:   'Your item is now live and visible to buyers.',
     primaryBtn: 'Continue',
+    secondaryBtn: undefined,
   },
   suggest_improvements: {
     icon:       <AlertTriangle className="w-5 h-5" />,
@@ -125,6 +126,7 @@ const DECISION_CFG = {
     title:      'Listing not approved',
     subtitle:   'Address the issues below and try again.',
     primaryBtn: 'Fix issues',
+    secondaryBtn: undefined,
   },
 }
 
