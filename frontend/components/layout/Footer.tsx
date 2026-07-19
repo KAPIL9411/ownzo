@@ -27,6 +27,7 @@ export function Footer() {
                   src="/images/logo/logo.webp"
                   alt="Ownzo Logo"
                   fill
+                  sizes="(max-width: 640px) 40px, 48px"
                   className="object-contain"
                 />
               </div>

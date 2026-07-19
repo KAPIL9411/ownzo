@@ -114,6 +114,16 @@ export function useAuth() {
     }
   }, []) // Empty dependency array - store methods are stable
 
+  // 🔒 SECURITY FIX: Initialize CSRF token on mount if already authenticated
+  // This handles page refreshes where auth is restored from localStorage
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && !isE2E) {
+      fetchCSRFToken().catch((error) => {
+        console.warn('Failed to initialize CSRF token:', error)
+      })
+    }
+  }, [isAuthenticated, isLoading, isE2E])
+
   // Popup → Redirect fallback pattern.
   // Returns 'success' | 'cancelled' | 'redirecting' so the caller
   // can distinguish between the three outcomes without try/catch.
