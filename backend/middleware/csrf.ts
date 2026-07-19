@@ -77,17 +77,23 @@ export function verifyCSRFToken(req: NextRequest, userId: string): boolean {
   const cookieToken = req.cookies.get(CSRF_COOKIE_NAME)?.value
   
   if (!headerToken || !cookieToken) {
+    console.warn(`[CSRF] Missing token - Header: ${!!headerToken}, Cookie: ${!!cookieToken}`)
     return false
   }
   
   // 🔒 SECURITY: Verify tokens match (double-submit cookie pattern)
   // This prevents CSRF even if attacker can read cookies but not JS
   if (headerToken !== cookieToken) {
+    console.warn(`[CSRF] Token mismatch - Header and cookie tokens don't match`)
     return false
   }
   
   // Verify the token signature and expiration
-  return verifyCSRFTokenInternal(headerToken, userId)
+  const isValid = verifyCSRFTokenInternal(headerToken, userId)
+  if (!isValid) {
+    console.warn(`[CSRF] Token validation failed for user ${userId}`)
+  }
+  return isValid
 }
 
 /**
@@ -149,7 +155,7 @@ export function attachCSRFToken(response: NextResponse, userId: string): NextRes
   response.cookies.set(CSRF_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax', // 'lax' instead of 'strict' for better Vercel compatibility
     maxAge: 24 * 60 * 60, // 24 hours
     path: '/',
   })
