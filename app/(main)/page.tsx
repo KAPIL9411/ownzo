@@ -111,12 +111,84 @@ export default function HomePage() {
     <div>
 
       {/* ═══════════════════════════════════════════════════════
-          HERO — Person's head extends above the red box
-          Mobile: No person image, simplified layout
-          Tablet: Show person, adjusted sizing
-          Desktop: Full layout with extended person
+          HERO — Mobile: Food delivery app style | Desktop: Original design
           ═══════════════════════════════════════════════════════ */}
-      <div style={{ marginBottom: '2rem', marginTop: '-1rem' }} className="sm:mb-12">
+      
+      {/* MOBILE HERO (< 768px) */}
+      <div className="md:hidden relative -mx-4 -mt-20 mb-6">
+        {/* Red curved background section - extends to top */}
+        <div className="relative overflow-hidden"
+             style={{
+               background: '#721C1C', // Same color as desktop
+               borderBottomLeftRadius: '24px',
+               borderBottomRightRadius: '24px',
+               paddingTop: '5rem', // Space for nav bar above
+               paddingBottom: '80px', // Space for overlapping search
+             }}>
+          
+          {/* Decorative circles pattern */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none">
+            <div className="absolute top-20 right-10 w-32 h-32 rounded-full border-4 border-white/20" />
+            <div className="absolute top-32 right-0 w-24 h-24 rounded-full border-4 border-white/20" />
+            <div className="absolute bottom-20 left-10 w-40 h-40 rounded-full border-4 border-white/20" />
+          </div>
+
+          {/* Location bar */}
+          <div className="relative z-10 px-5 pb-3">
+            <button className="flex items-center gap-2 text-white">
+              <Navigation2 className="h-4 w-4" />
+              <div className="text-left">
+                <p className="text-xs opacity-75 font-medium">Location</p>
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-sm">
+                    {detectedCity || 'Your City'}
+                  </span>
+                  <ChevronRight className="h-3 w-3 rotate-90" />
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Promo content */}
+          <div className="relative z-10 px-5 pt-2 pb-6">
+            <h1 className="text-white text-[28px] leading-tight font-extrabold mb-3">
+              Buy & Sell in<br />
+              <span className="text-orange-400">Your Community!</span>
+            </h1>
+            
+            <Link href="/listings"
+                  className="inline-block bg-white text-[#721C1C] font-bold text-sm px-5 py-2.5 rounded-full shadow-lg">
+              Start Shopping
+            </Link>
+          </div>
+        </div>
+
+        {/* Search bar - overlaps red section */}
+        <div className="relative -mt-12 mx-4 mb-6 z-20">
+          <div className="bg-white rounded-2xl shadow-lg p-3 flex items-center gap-3">
+            <div className="flex-1 flex items-center gap-3">
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search items, community, etc"
+                className="flex-1 text-sm text-gray-600 placeholder:text-gray-400 outline-none bg-transparent"
+                onFocus={(e) => { e.preventDefault(); window.location.href = '/search' }}
+              />
+            </div>
+            <Link href="/search"
+                  className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP HERO (>= 768px) - Original design */}
+      <div className="hidden md:block" style={{ marginBottom: '2rem', marginTop: '-1rem' }}>
         <section className="relative rounded-xl sm:rounded-2xl"
                  style={{ 
                    background:'#721C1C', 
@@ -166,7 +238,6 @@ export default function HomePage() {
           </div>
 
           {/* Right — person image with head extending above container */}
-          {/* Hidden on mobile (<768px), visible on tablet+ */}
           <div className="hidden md:block absolute right-4 lg:right-8 z-20" 
                style={{ 
                  bottom: '0',
