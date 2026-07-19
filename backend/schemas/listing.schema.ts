@@ -57,10 +57,16 @@ export const createListingSchema = z.object({
     .array(z.string().max(30, 'Tag must not exceed 30 characters'))
     .max(10, 'Maximum 10 tags allowed')
     .optional(),
+  
+  // Trust Engine fields
+  status: z.enum(['draft', 'pending_review', 'active', 'rejected']).optional().default('active'),
+  trustScore: z.number().min(0).max(100).optional(),
+  verificationStatus: z.enum(['verified', 'pending', 'unverified', 'rejected']).optional(),
+  riskScore: z.number().min(0).max(100).optional(),
 })
 
 export const updateListingSchema = createListingSchema.partial().extend({
-  status: z.enum(['active', 'sold', 'deleted']).optional(),
+  status: z.enum(['draft', 'pending_review', 'active', 'rejected', 'sold', 'deleted']).optional(),
 })
 
 export const listingFiltersSchema = z.object({

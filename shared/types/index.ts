@@ -25,6 +25,14 @@ export interface User {
   location?: Location
   createdAt: Date
   updatedAt: Date
+  
+  // Trust Engine - Enhanced verification fields
+  phoneVerified?: boolean
+  emailVerified?: boolean
+  collegeVerified?: boolean
+  governmentIdVerified?: boolean
+  lastActiveAt?: Date
+  accountAge?: number // Calculated field - days since account creation
 }
 
 export interface Location {
@@ -59,9 +67,27 @@ export interface Listing {
   updatedAt: Date
   expiresAt?: Date
   soldAt?: Date  // 🔒 ADDED: Track when listing was sold (for race condition prevention)
+  
+  // Trust Engine - Verification & Trust fields
+  trustScore?: number // Overall trust score (0-100)
+  verificationStatus: VerificationStatus // Current verification state
+  verificationChecks?: string[] // Array of passed verification check types
+  riskScore?: number // Risk assessment score (0-100, lower is better)
+  publishedAt?: Date // When listing was actually published (after verification)
+  verificationCode?: string // Code for live verification photos (high-value items)
+  categorySpecificData?: CategorySpecificData // Additional data for category-specific verification
 }
 
-export type ListingStatus = 'active' | 'sold' | 'expired' | 'deleted'
+export type ListingStatus = 'draft' | 'pending_review' | 'active' | 'sold' | 'expired' | 'deleted' | 'rejected'
+export type VerificationStatus = 'unverified' | 'pending' | 'checking' | 'verified' | 'needs_improvement' | 'rejected'
+
+// Category-specific data for verification
+export interface CategorySpecificData {
+  verificationPhoto?: string // Live verification photo with handwritten code
+  invoice?: string // Invoice/bill for warranty verification
+  serialNumber?: string // For electronics, vehicles, etc.
+  specifications?: Record<string, any> // Category-specific specs
+}
 export type ProductCondition = 'new' | 'like-new' | 'good' | 'fair' | 'poor'
 
 // Category Types
@@ -182,6 +208,7 @@ export interface AdminStats {
   totalCommunities: number
   totalBuyRequests: number
   activeListings: number
+  pendingListings: number
   bannedUsers: number
   pendingJoinRequests: number
   verifiedUsers: number
@@ -306,6 +333,12 @@ export interface CreateListingInput {
   communityId?: string
   images: string[]
   video?: string
+  categorySpecificData?: CategorySpecificData
+  // Trust Engine fields — set by the assess flow before submission
+  status?: ListingStatus
+  trustScore?: number
+  verificationStatus?: VerificationStatus
+  riskScore?: number
 }
 
 export interface UpdateListingInput extends Partial<CreateListingInput> {

@@ -25,6 +25,7 @@ async function handler(_req: NextRequest) {
         totalCommunities:     communities.size,
         totalBuyRequests:     buyRequests.size,
         activeListings:       listingDocs.filter((l) => l.status === 'active').length,
+        pendingListings:      listingDocs.filter((l) => l.status === 'pending_review').length,
         bannedUsers:          userDocs.filter((u) => u.isBanned).length,
         verifiedUsers:        userDocs.filter((u) => u.isVerified || u.verified).length,
         pendingJoinRequests:  joinRequests.size,

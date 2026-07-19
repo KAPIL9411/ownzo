@@ -16,6 +16,8 @@ import { formatPrice } from '@/frontend/lib/utils'
 const STATUS_FILTERS: { value: ListingStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'active', label: 'Active' },
+  { value: 'pending_review', label: 'Under Review' },
+  { value: 'draft', label: 'Draft' },
   { value: 'sold', label: 'Sold' },
   { value: 'expired', label: 'Expired' },
 ]
@@ -126,12 +128,17 @@ interface MyListingCardProps {
 }
 
 function MyListingCard({ listing, onDelete, isDeleting }: MyListingCardProps) {
-  const statusColors = {
-    active: 'bg-green-50 text-green-700 border-green-200',
-    sold: 'bg-gray-50 text-gray-600 border-gray-200',
-    expired: 'bg-orange-50 text-orange-700 border-orange-200',
-    deleted: 'bg-red-50 text-red-700 border-red-200',
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    active:         { label: 'Active',          className: 'bg-green-50 text-green-700 border-green-200' },
+    sold:           { label: 'Sold',            className: 'bg-gray-50 text-gray-600 border-gray-200' },
+    expired:        { label: 'Expired',         className: 'bg-orange-50 text-orange-700 border-orange-200' },
+    deleted:        { label: 'Deleted',         className: 'bg-red-50 text-red-700 border-red-200' },
+    draft:          { label: 'Draft',           className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+    pending_review: { label: 'Under Review',    className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    rejected:       { label: 'Rejected',        className: 'bg-red-50 text-red-600 border-red-200' },
   }
+  const { label: statusLabel, className: statusClassName } =
+    statusConfig[listing.status] ?? { label: listing.status, className: 'bg-gray-50 text-gray-600 border-gray-200' }
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
@@ -153,9 +160,9 @@ function MyListingCard({ listing, onDelete, isDeleting }: MyListingCardProps) {
         <div className="absolute top-2 left-2">
           <span className={cn(
             'px-2 py-1 rounded-full text-[10px] font-bold uppercase border',
-            statusColors[listing.status]
+            statusClassName
           )}>
-            {listing.status}
+            {statusLabel}
           </span>
         </div>
 

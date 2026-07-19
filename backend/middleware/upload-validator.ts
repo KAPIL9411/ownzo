@@ -124,10 +124,25 @@ function detectFileType(buffer: Buffer): string | null {
  * Check for potential malicious content in files
  */
 function scanForMaliciousContent(buffer: Buffer, mimeType: string): void {
-  // Convert buffer to string for text-based checks
+  // For images, only do basic checks to avoid false positives
+  // EXIF metadata can contain various characters that might trigger false alarms
+  if (mimeType.startsWith('image/')) {
+    // Only check the very first few bytes for obvious executable markers
+    const firstBytes = buffer.slice(0, 100).toString('utf8')
+    
+    // Only flag files that start with clear executable markers
+    if (firstBytes.startsWith('<?php') || firstBytes.startsWith('#!/bin/') || firstBytes.startsWith('#!/usr/bin/')) {
+      throw new ApiError(400, 'Image file contains executable code')
+    }
+    
+    // Skip further checks for images to avoid EXIF false positives
+    return
+  }
+  
+  // Convert buffer to string for text-based checks (for non-images)
   const content = buffer.toString('utf8', 0, Math.min(buffer.length, 10000))
   
-  // Check for common script injections
+  // Check for common script injections in non-image files
   const dangerousPatterns = [
     /<script/i,
     /javascript:/i,
@@ -142,21 +157,6 @@ function scanForMaliciousContent(buffer: Buffer, mimeType: string): void {
   for (const pattern of dangerousPatterns) {
     if (pattern.test(content)) {
       throw new ApiError(400, 'File contains potentially malicious content')
-    }
-  }
-  
-  // For images, check if they contain PHP or executable code
-  if (mimeType.startsWith('image/')) {
-    const executablePatterns = [
-      /<\?php/i,
-      /<%/,
-      /#!/, // Shebang
-    ]
-    
-    for (const pattern of executablePatterns) {
-      if (pattern.test(content)) {
-        throw new ApiError(400, 'Image file contains executable code')
-      }
     }
   }
 }

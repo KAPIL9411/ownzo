@@ -64,4 +64,17 @@ export class AdminService {
   ): Promise<ApiResponse> {
     return ApiService.patch(`/admin/join-requests/${requestId}`, { action })
   }
+
+  // ── Listings ─────────────────────────────────────────────
+  static async getPendingListings(): Promise<ApiResponse<any[]>> {
+    return ApiService.get('/admin/listings?status=pending_review')
+  }
+
+  static async reviewListing(
+    listingId: string,
+    action: 'approve' | 'reject',
+    reason?: string
+  ): Promise<ApiResponse> {
+    return ApiService.patch(`/admin/listings/${listingId}`, { action, reason })
+  }
 }

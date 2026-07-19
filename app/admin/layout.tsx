@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import Link from 'next/link'
 import {
   LayoutDashboard, Users, UsersRound, ClipboardList,
-  LogOut, Menu, X, ShieldCheck, ChevronRight,
+  LogOut, Menu, X, ShieldCheck, ChevronRight, FileCheck,
 } from 'lucide-react'
 import { cn } from '@/frontend/lib/utils'
 
@@ -14,6 +14,7 @@ const NAV = [
   { href: '/admin',            icon: LayoutDashboard, label: 'Dashboard'   },
   { href: '/admin/users',      icon: Users,           label: 'Users'       },
   { href: '/admin/communities',icon: UsersRound,      label: 'Communities' },
+  { href: '/admin/listings',   icon: FileCheck,       label: 'Listings'    },
   { href: '/admin/join-requests', icon: ClipboardList, label: 'Join Requests' },
 ]
 

@@ -25,8 +25,22 @@ export class ListingRepository {
     const listing: Listing = {
       id: listingRef.id,
       sellerId,
-      ...data,
-      status: 'active',
+      title: data.title,
+      description: data.description,
+      categoryId: data.categoryId,
+      price: data.price,
+      negotiable: data.negotiable,
+      condition: data.condition,
+      city: data.city,
+      ...(data.locality && { locality: data.locality }),
+      ...(data.communityId && { communityId: data.communityId }),
+      images: data.images,
+      ...(data.video && { video: data.video }),
+      ...(data.categorySpecificData && { categorySpecificData: data.categorySpecificData }),
+      status: data.status ?? 'active',
+      verificationStatus: data.verificationStatus ?? 'unverified',
+      ...(data.trustScore !== undefined && { trustScore: data.trustScore }),
+      ...(data.riskScore !== undefined && { riskScore: data.riskScore }),
       views: 0,
       wishlistCount: 0,
       createdAt: new Date(),
@@ -298,6 +312,29 @@ export class ListingRepository {
       .slice(0, 50)
 
     return scored
+  }
+
+  async getListingsByStatus(status: string): Promise<Listing[]> {
+    const snapshot = await this.db
+      .collection(LISTINGS_COLLECTION)
+      .where('status', '==', status)
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get()
+
+    const listings = serializeSnapshots<Listing>(snapshot.docs)
+
+    // Batch fetch seller info to prevent N+1 queries
+    const sellerIds = listings.map((l) => l.sellerId)
+    const sellersMap = await userRepository.getUsersByIds(sellerIds)
+
+    // Enrich listings with seller info
+    const enrichedListings = listings.map((listing) => ({
+      ...listing,
+      seller: sellersMap.get(listing.sellerId) ?? undefined,
+    }))
+
+    return enrichedListings
   }
 }
 

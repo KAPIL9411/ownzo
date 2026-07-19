@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trust Engine Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #10B981;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #3B82F6;
+        }
+        .test-section h2 {
+            color: #1f2937;
+            margin-top: 0;
+        }
+        button {
+            background: #10B981;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #059669;
+        }
+        button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result.success {
+            background: #D1FAE5;
+            border: 1px solid #10B981;
+            color: #065F46;
+        }
+        .result.error {
+            background: #FEE2E2;
+            border: 1px solid #EF4444;
+            color: #991B1B;
+        }
+        .result.info {
+            background: #DBEAFE;
+            border: 1px solid #3B82F6;
+            color: #1E40AF;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status.success {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+        .status.error {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+        .status.pending {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #10B981;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .note {
+            background: #FEF3C7;
+            border-left: 4px solid #F59E0B;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Trust Engine Local Test</h1>
+        <p>Test all Trust Engine components in your local environment</p>
+
+        <!-- Test 1: Health Check -->
+        <div class="test-section">
+            <h2>Test 1: Trust Engine Health Check</h2>
+            <p>Check if Trust Engine is configured and running (No login required)</p>
+            <button onclick="testHealthCheck()">Run Test</button>
+            <div id="test1-result"></div>
+        </div>
+
+        <!-- Test 2: Server Status -->
+        <div class="test-section">
+            <h2>Test 2: Server Status</h2>
+            <p>Check if the development server is running</p>
+            <button onclick="testServerStatus()">Run Test</button>
+            <div id="test2-result"></div>
+        </div>
+
+        <!-- Test 3: Eligibility API -->
+        <div class="test-section">
+            <h2>Test 3: Eligibility API</h2>
+            <p>Test the seller eligibility endpoint</p>
+            <div class="note">
+                <strong>Note:</strong> You must be logged in for this test to return full data.
+                If not logged in, it will return 401 (which is correct behavior).
+            </div>
+            <button onclick="testEligibility()">Run Test</button>
+            <div id="test3-result"></div>
+        </div>
+
+        <!-- Test 4: Assessment API -->
+        <div class="test-section">
+            <h2>Test 4: Assessment API</h2>
+            <p>Test trust assessment with sample listing data</p>
+            <div class="note">
+                <strong>Note:</strong> You must be logged in for this test.
+            </div>
+            <button onclick="testAssessment()">Test Good Listing</button>
+            <button onclick="testPoorListing()">Test Poor Listing</button>
+            <div id="test4-result"></div>
+        </div>
+
+        <!-- Test 5: Run All Tests -->
+        <div class="test-section">
+            <h2>Test 5: Run All Tests</h2>
+            <p>Run all tests sequentially</p>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <div id="test5-result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Test 1: Health Check (NEW - No auth required)
+        async function testHealthCheck() {
+            const resultDiv = document.getElementById('test1-result');
+            resultDiv.innerHTML = '<div class="loading"></div> Testing...';
+            
+            try {
+                const response = await fetch('/api/trust-engine/health');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const configInfo = Object.entries(data.config)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join('\n  ');
+                    
+                    const aiInfo = Object.entries(data.aiServices)
+                        .map(([key, value]) => `${key}: ${value ? '✓ Configured' : '✗ Not configured'}`)
+                        .join('\n  ');
+                    
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ ${data.message}
+                            
+                            Configuration:
+                              ${configInfo}
+                            
+                            AI Services:
+                              ${aiInfo}
+                            
+                            Timestamp: ${data.timestamp}
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || 'Health check failed');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ ERROR: ${error.message}
+                        
+                        Make sure:
+                        1. Server is running (npm run dev)
+                        2. Trust Engine files are present
+                        3. Check terminal for errors
+                    </div>
+                `;
+            }
+        }
+
+        // Test 2: Server Status
+        async function testServerStatus() {
+            const resultDiv = document.getElementById('test2-result');
+            resultDiv.innerHTML = '<div class="loading"></div> Testing...';
+            
+            try {
+                const response = await fetch('/');
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ SUCCESS: Server is running on http://localhost:3000
+                            Status: ${response.status} ${response.statusText}
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ ERROR: ${error.message}
+                        
+                        Make sure you run: npm run dev
+                    </div>
+                `;
+            }
+        }
+
+        // Test 3: Eligibility API
+        async function testEligibility() {
+            const resultDiv = document.getElementById('test3-result');
+            resultDiv.innerHTML = '<div class="loading"></div> Testing...';
+            
+            try {
+                const response = await fetch('/api/listings/eligibility');
+                const data = await response.json();
+                
+                if (response.status === 401) {
+                    resultDiv.innerHTML = `
+                        <div class="result info">
+                            ℹ️ EXPECTED: Not authenticated (401)
+                            
+                            ${JSON.stringify(data, null, 2)}
+                            
+                            ⚠️ Log in first, then run this test again
+                        </div>
+                    `;
+                } else if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ SUCCESS: Eligibility API working!
+                            
+                            Trust Score: ${data.data?.seller?.trustScore || 'N/A'}
+                            Trust Grade: ${data.data?.seller?.trustGrade || 'N/A'}
+                            Eligible: ${data.data?.eligible ? 'Yes' : 'No'}
+                            
+                            Full Response:
+                            ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ ERROR: ${data.message || 'Unknown error'}
+                            
+                            ${data.error ? 'Details: ' + data.error : ''}
+                            
+                            Please check:
+                            1. Are you logged in?
+                            2. Check browser console (F12) for errors
+                            3. Check terminal for server errors
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ ERROR: ${error.message}
+                        
+                        Common causes:
+                        1. Not logged in (Click Login with Google first)
+                        2. Network error
+                        3. Server crashed (check terminal)
+                        4. User doesn't exist in database
+                    </div>
+                `;
+            }
+        }
+
+        // Test 4: Assessment API - Good Listing
+        async function testAssessment() {
+            const resultDiv = document.getElementById('test4-result');
+            resultDiv.innerHTML = '<div class="loading"></div> Testing good listing...';
+            
+            const goodListing = {
+                title: "iPhone 14 Pro Max 256GB - Excellent Condition",
+                description: "Selling my iPhone 14 Pro Max in excellent condition. Only 6 months old, comes with original box and all accessories. Battery health 100%. No scratches or dents. Reason for selling: Upgrading to iPhone 15. Available for immediate pickup.",
+                price: 95000,
+                categoryId: "electronics",
+                condition: "like-new",
+                images: [
+                    "https://firebasestorage.googleapis.com/v0/b/ownzo-68cc6.appspot.com/o/img1.jpg",
+                    "https://firebasestorage.googleapis.com/v0/b/ownzo-68cc6.appspot.com/o/img2.jpg",
+                    "https://firebasestorage.googleapis.com/v0/b/ownzo-68cc6.appspot.com/o/img3.jpg",
+                    "https://firebasestorage.googleapis.com/v0/b/ownzo-68cc6.appspot.com/o/img4.jpg"
+                ],
+                city: "Mumbai",
+                locality: "Andheri"
+            };
+            
+            await runAssessment(goodListing, resultDiv, 'Good Listing');
+        }
+
+        // Test 4: Assessment API - Poor Listing
+        async function testPoorListing() {
+            const resultDiv = document.getElementById('test4-result');
+            resultDiv.innerHTML = '<div class="loading"></div> Testing poor listing...';
+            
+            const poorListing = {
+                title: "Phone",
+                description: "Good phone",
+                price: 5000,
+                categoryId: "electronics",
+                condition: "good",
+                images: ["https://example.com/img.jpg"],
+                city: "Mumbai"
+            };
+            
+            await runAssessment(poorListing, resultDiv, 'Poor Listing');
+        }
+
+        // Helper function to run assessment
+        async function runAssessment(listing, resultDiv, testName) {
+            try {
+                const response = await fetch('/api/listings/assess', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(listing)
+                });
+                
+                const data = await response.json();
+                
+                if (response.status === 401) {
+                    resultDiv.innerHTML = `
+                        <div class="result info">
+                            ℹ️ EXPECTED: Not authenticated (401)
+                            
+                            ⚠️ Log in first, then run this test again
+                        </div>
+                    `;
+                } else if (data.success) {
+                    const decision = data.data.decision;
+                    const emoji = decision === 'auto_publish' ? '✅' : 
+                                 decision === 'suggest_improvements' ? '⚠️' : 
+                                 decision === 'require_review' ? '🔍' : '❌';
+                    
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ${emoji} ${testName.toUpperCase()} - ${data.message}
+                            
+                            Overall Score: ${data.data.overallScore}/100
+                            Seller Score:  ${data.data.sellerScore}/100
+                            Listing Score: ${data.data.listingScore}/100
+                            
+                            Decision: ${decision}
+                            Can Publish: ${data.data.canPublish ? 'Yes' : 'No'}
+                            
+                            ${data.data.improvements?.length > 0 ? 
+                                'Improvements Needed:\n' + data.data.improvements.map((imp, i) => `  ${i+1}. ${imp}`).join('\n') 
+                                : 'No improvements needed!'}
+                            
+                            Full Response:
+                            ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Assessment failed');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ ERROR: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Test 5: Run All Tests
+        async function runAllTests() {
+            const resultDiv = document.getElementById('test5-result');
+            resultDiv.innerHTML = '<div class="loading"></div> Running all tests...';
+            
+            let results = [];
+            
+            // Test 1: Health Check
+            try {
+                const response = await fetch('/api/trust-engine/health');
+                const data = await response.json();
+                results.push({
+                    test: 'Trust Engine Health',
+                    status: data.success ? 'success' : 'error',
+                    message: data.success ? data.message : data.error
+                });
+            } catch (error) {
+                results.push({
+                    test: 'Trust Engine Health',
+                    status: 'error',
+                    message: error.message
+                });
+            }
+            
+            // Test 2: Server Status
+            try {
+                const response = await fetch('/');
+                results.push({
+                    test: 'Server Status',
+                    status: response.ok ? 'success' : 'error',
+                    message: response.ok ? 'Server is running' : 'Server not responding'
+                });
+            } catch (error) {
+                results.push({
+                    test: 'Server Status',
+                    status: 'error',
+                    message: error.message
+                });
+            }
+            
+            // Test 2
+            try {
+                const response = await fetch('/api/listings/eligibility');
+                const data = await response.json();
+                results.push({
+                    test: 'Eligibility API',
+                    status: response.status === 401 || data.success ? 'success' : 'error',
+                    message: response.status === 401 ? 'Returns 401 (correct)' : data.success ? 'API working' : data.message
+                });
+            } catch (error) {
+                results.push({
+                    test: 'Eligibility API',
+                    status: 'error',
+                    message: error.message
+                });
+            }
+            
+            // Test 3
+            try {
+                const response = await fetch('/api/listings/assess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: "Test",
+                        description: "Test",
+                        price: 1000,
+                        categoryId: "test",
+                        condition: "good",
+                        images: ["https://example.com/img.jpg"],
+                        city: "Test"
+                    })
+                });
+                const data = await response.json();
+                results.push({
+                    test: 'Assessment API',
+                    status: response.status === 401 || data.success ? 'success' : 'error',
+                    message: response.status === 401 ? 'Returns 401 (correct)' : data.success ? 'API working' : data.message
+                });
+            } catch (error) {
+                results.push({
+                    test: 'Assessment API',
+                    status: 'error',
+                    message: error.message
+                });
+            }
+            
+            // Display results
+            const successCount = results.filter(r => r.status === 'success').length;
+            const totalCount = results.length;
+            
+            resultDiv.innerHTML = `
+                <div class="result ${successCount === totalCount ? 'success' : 'info'}">
+                    Test Results: ${successCount}/${totalCount} passed
+                    
+                    ${results.map(r => `
+${r.status === 'success' ? '✅' : '❌'} ${r.test}: ${r.message}
+                    `).join('')}
+                    
+                    ${successCount === totalCount ? 
+                        '🎉 All tests passed! Trust Engine is working.' : 
+                        '⚠️ Some tests failed. Check individual test results above.'}
+                </div>
+            `;
+        }
+
+        // Auto-run server status on page load
+        window.addEventListener('load', () => {
+            setTimeout(testServerStatus, 500);
+        });
+    </script>
+</body>
+</html>

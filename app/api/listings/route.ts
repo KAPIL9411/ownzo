@@ -67,6 +67,19 @@ async function postHandler(req: NextRequest, { user }: any) {
 
     const listing = await listingRepository.createListing(user.uid, validationResult.data)
 
+    // Send notification if listing is pending review
+    if (listing.status === 'pending_review') {
+      const notificationRepository = (await import('@/backend/repositories/notification.repository')).notificationRepository
+      await notificationRepository.createNotification(
+        user.uid,
+        '🔍 Listing Submitted for Review',
+        `Your listing "${listing.title}" has been submitted for admin review. We'll notify you once it's approved.`,
+        'listing',
+        listing.id,
+        listing.images?.[0]
+      )
+    }
+
     return NextResponse.json(
       {
         success: true,

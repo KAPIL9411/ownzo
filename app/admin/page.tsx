@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { AdminService } from '@/frontend/services/admin.service'
-import { Users, Package, UsersRound, ShoppingBag, ShieldCheck, Ban, ClipboardList, BadgeCheck } from 'lucide-react'
+import { Users, Package, UsersRound, ShoppingBag, ShieldCheck, Ban, ClipboardList, BadgeCheck, FileCheck } from 'lucide-react'
 import Link from 'next/link'
 
 function StatCard({
@@ -36,6 +36,7 @@ export default function AdminDashboard() {
     { label: 'Total Listings',        value: stats?.totalListings ?? 0,        icon: Package,     color: '#f59e0b'                               },
     { label: 'Active Listings',       value: stats?.activeListings ?? 0,       icon: ShoppingBag, color: '#10b981'                               },
     { label: 'Communities',           value: stats?.totalCommunities ?? 0,     icon: UsersRound,  color: '#8b5cf6', href: '/admin/communities'  },
+    { label: 'Pending Listings',      value: stats?.pendingListings ?? 0,      icon: FileCheck,   color: '#eab308', href: '/admin/listings'     },
     { label: 'Verified Users',        value: stats?.verifiedUsers ?? 0,        icon: BadgeCheck,  color: '#06b6d4', href: '/admin/users'        },
     { label: 'Banned Users',          value: stats?.bannedUsers ?? 0,          icon: Ban,         color: '#ef4444', href: '/admin/users'        },
     { label: 'Pending Join Requests', value: stats?.pendingJoinRequests ?? 0,  icon: ClipboardList, color: '#f97316', href: '/admin/join-requests' },
@@ -51,7 +52,7 @@ export default function AdminDashboard() {
 
       {isLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 9 }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-gray-800 bg-gray-900 p-5 h-28 animate-pulse" />
           ))}
         </div>
@@ -68,6 +69,7 @@ export default function AdminDashboard() {
           {[
             { label: 'Manage Users',       href: '/admin/users',         color: '#3b82f6' },
             { label: 'Manage Communities', href: '/admin/communities',   color: '#8b5cf6' },
+            { label: 'Review Listings',    href: '/admin/listings',      color: '#eab308' },
             { label: 'Review Join Requests', href: '/admin/join-requests', color: '#f97316' },
             { label: 'View Live Site',     href: '/',                    color: '#1B4332' },
           ].map(({ label, href, color }) => (

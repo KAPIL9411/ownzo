@@ -24,8 +24,8 @@ export class NotificationRepository {
       title,
       message,
       type,
-      referenceId,
-      imageUrl,
+      ...(referenceId && { referenceId }),
+      ...(imageUrl && { imageUrl }),
       read: false,
       createdAt: new Date(),
     }
