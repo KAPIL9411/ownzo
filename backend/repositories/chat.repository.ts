@@ -39,7 +39,9 @@ export class ChatRepository {
     )
 
     await chatRef.set(cleanChat)
-    return chat as Chat
+    
+    // Populate and return chat with user details
+    return await this.populateChatUsers(chat as Chat)
   }
 
   async getChatById(id: string): Promise<Chat | null> {
@@ -47,7 +49,44 @@ export class ChatRepository {
 
     if (!doc.exists) return null
 
-    return serializeDocument<Chat>({ id: doc.id, ...doc.data() })
+    const chatData = { id: doc.id, ...doc.data() }
+    
+    // Populate buyer and seller details
+    const chat = await this.populateChatUsers(chatData as Chat)
+    
+    return serializeDocument<Chat>(chat)
+  }
+
+  private async populateChatUsers(chat: Chat): Promise<Chat> {
+    // Fetch buyer details
+    if (chat.buyerId) {
+      const buyerDoc = await this.db.collection('users').doc(chat.buyerId).get()
+      if (buyerDoc.exists) {
+        const buyerData = buyerDoc.data()
+        chat.buyer = {
+          id: buyerDoc.id,
+          name: buyerData?.name || 'User',
+          email: buyerData?.email || '',
+          photoURL: buyerData?.photoURL || '',
+        }
+      }
+    }
+
+    // Fetch seller details
+    if (chat.sellerId) {
+      const sellerDoc = await this.db.collection('users').doc(chat.sellerId).get()
+      if (sellerDoc.exists) {
+        const sellerData = sellerDoc.data()
+        chat.seller = {
+          id: sellerDoc.id,
+          name: sellerData?.name || 'User',
+          email: sellerData?.email || '',
+          photoURL: sellerData?.photoURL || '',
+        }
+      }
+    }
+
+    return chat
   }
 
   async getChatByParticipants(
@@ -85,6 +124,7 @@ export class ChatRepository {
 
     const chats = new Map<string, Chat>()
 
+    // Collect all unique chats
     serializeSnapshots<Chat>(buyerSnapshot.docs).forEach((chat) => {
       chats.set(chat.id, chat)
     })
@@ -95,7 +135,13 @@ export class ChatRepository {
       }
     })
 
-    return Array.from(chats.values()).sort(
+    // Populate user details for all chats
+    const chatsArray = Array.from(chats.values())
+    const populatedChats = await Promise.all(
+      chatsArray.map((chat) => this.populateChatUsers(chat))
+    )
+
+    return populatedChats.sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
   }
