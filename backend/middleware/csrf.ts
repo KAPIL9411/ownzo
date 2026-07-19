@@ -6,6 +6,14 @@ const CSRF_TOKEN_HEADER = 'x-csrf-token'
 const CSRF_COOKIE_NAME = 'csrf-token'
 const TOKEN_VALIDITY_MS = 24 * 60 * 60 * 1000 // 24 hours
 
+// Log CSRF configuration on startup (don't log the actual secret)
+console.log('[CSRF] Configuration:', {
+  secretConfigured: !!process.env.CSRF_SECRET,
+  secretLength: CSRF_SECRET.length,
+  isDefaultSecret: CSRF_SECRET === 'default-csrf-secret-change-in-production',
+  nodeEnv: process.env.NODE_ENV,
+})
+
 // 🔒 SECURITY FIX: Removed in-memory Map (doesn't work in serverless)
 // Now using stateless signed tokens with embedded timestamp
 // This eliminates memory leaks and works across serverless function instances
@@ -67,24 +75,21 @@ function verifyCSRFTokenInternal(token: string, userId: string): boolean {
 }
 
 /**
- * Verify CSRF token from request (double-submit cookie pattern)
+ * Verify CSRF token from request
  */
 export function verifyCSRFToken(req: NextRequest, userId: string): boolean {
   // Get token from header
   const headerToken = req.headers.get(CSRF_TOKEN_HEADER)
   
-  // Get token from cookie (double-submit pattern)
-  const cookieToken = req.cookies.get(CSRF_COOKIE_NAME)?.value
+  // Enhanced logging for debugging
+  console.log('[CSRF] Verification attempt:', {
+    userId,
+    hasHeaderToken: !!headerToken,
+    headerTokenPreview: headerToken ? `${headerToken.substring(0, 20)}...` : 'none',
+  })
   
-  if (!headerToken || !cookieToken) {
-    console.warn(`[CSRF] Missing token - Header: ${!!headerToken}, Cookie: ${!!cookieToken}`)
-    return false
-  }
-  
-  // 🔒 SECURITY: Verify tokens match (double-submit cookie pattern)
-  // This prevents CSRF even if attacker can read cookies but not JS
-  if (headerToken !== cookieToken) {
-    console.warn(`[CSRF] Token mismatch - Header and cookie tokens don't match`)
+  if (!headerToken) {
+    console.warn(`[CSRF] Missing token in header`)
     return false
   }
   
@@ -92,6 +97,8 @@ export function verifyCSRFToken(req: NextRequest, userId: string): boolean {
   const isValid = verifyCSRFTokenInternal(headerToken, userId)
   if (!isValid) {
     console.warn(`[CSRF] Token validation failed for user ${userId}`)
+  } else {
+    console.log(`[CSRF] Token validation successful for user ${userId}`)
   }
   return isValid
 }
@@ -146,19 +153,21 @@ export function requireCSRF(
 }
 
 /**
- * Helper to attach CSRF token to response
+ * Helper to attach CSRF token to response (for compatibility, but not required for verification)
  */
 export function attachCSRFToken(response: NextResponse, userId: string): NextResponse {
   const token = generateCSRFToken(userId)
   
-  // Set as HTTP-only cookie (double-submit pattern)
+  // Note: Cookie is set for potential future use, but verification only checks header
   response.cookies.set(CSRF_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax', // 'lax' instead of 'strict' for better Vercel compatibility
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60, // 24 hours
     path: '/',
   })
+  
+  console.log('[CSRF] Token generated and cookie set for user:', userId)
   
   return response
 }
